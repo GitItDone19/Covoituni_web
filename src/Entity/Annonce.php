@@ -3,6 +3,9 @@
 namespace App\Entity;
 
 use App\Repository\AnnonceRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: AnnonceRepository::class)]
@@ -16,33 +19,41 @@ class Annonce
     #[ORM\Column(length: 255)]
     private ?string $titre = null;
 
-    #[ORM\Column(type: 'text')]
+    #[ORM\Column(type: Types::TEXT)]
     private ?string $description = null;
 
-    #[ORM\Column]
-    private ?\DateTimeImmutable $datePublication = null;
+    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    private ?\DateTimeInterface $date_publication = null;
 
     #[ORM\Column]
-    private ?int $driverId = null;
+    private ?int $driver_id = null;
 
     #[ORM\Column]
-    private ?int $carId = null;
+    private ?int $car_id = null;
 
     #[ORM\Column(length: 10)]
     private ?string $status = 'OPEN';
 
-    #[ORM\ManyToOne(targetEntity: Trajet::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\ManyToOne(inversedBy: 'annonces')]
     private ?Trajet $trajet = null;
 
     #[ORM\Column]
-    private ?int $availableSeats = 1;
+    private ?int $available_seats = 1;
 
-    #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $dateTermination = null;
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $date_termination = null;
 
     #[ORM\Column]
-    private ?int $eventId = 0;
+    private ?int $event_id = 0;
+
+    #[ORM\OneToMany(mappedBy: 'annonce', targetEntity: Reservation::class)]
+    private Collection $reservations;
+
+    public function __construct()
+    {
+        $this->reservations = new ArrayCollection();
+        $this->date_publication = new \DateTime();
+    }
 
     public function getId(): ?int
     {
@@ -57,6 +68,7 @@ class Annonce
     public function setTitre(string $titre): static
     {
         $this->titre = $titre;
+
         return $this;
     }
 
@@ -68,39 +80,43 @@ class Annonce
     public function setDescription(string $description): static
     {
         $this->description = $description;
+
         return $this;
     }
 
-    public function getDatePublication(): ?\DateTimeImmutable
+    public function getDatePublication(): ?\DateTimeInterface
     {
-        return $this->datePublication;
+        return $this->date_publication;
     }
 
-    public function setDatePublication(\DateTimeImmutable $datePublication): static
+    public function setDatePublication(\DateTimeInterface $date_publication): static
     {
-        $this->datePublication = $datePublication;
+        $this->date_publication = $date_publication;
+
         return $this;
     }
 
     public function getDriverId(): ?int
     {
-        return $this->driverId;
+        return $this->driver_id;
     }
 
-    public function setDriverId(int $driverId): static
+    public function setDriverId(int $driver_id): static
     {
-        $this->driverId = $driverId;
+        $this->driver_id = $driver_id;
+
         return $this;
     }
 
     public function getCarId(): ?int
     {
-        return $this->carId;
+        return $this->car_id;
     }
 
-    public function setCarId(int $carId): static
+    public function setCarId(int $car_id): static
     {
-        $this->carId = $carId;
+        $this->car_id = $car_id;
+
         return $this;
     }
 
@@ -112,6 +128,7 @@ class Annonce
     public function setStatus(string $status): static
     {
         $this->status = $status;
+
         return $this;
     }
 
@@ -123,39 +140,73 @@ class Annonce
     public function setTrajet(?Trajet $trajet): static
     {
         $this->trajet = $trajet;
+
         return $this;
     }
 
     public function getAvailableSeats(): ?int
     {
-        return $this->availableSeats;
+        return $this->available_seats;
     }
 
-    public function setAvailableSeats(int $availableSeats): static
+    public function setAvailableSeats(int $available_seats): static
     {
-        $this->availableSeats = $availableSeats;
+        $this->available_seats = $available_seats;
+
         return $this;
     }
 
-    public function getDateTermination(): ?\DateTimeImmutable
+    public function getDateTermination(): ?\DateTimeInterface
     {
-        return $this->dateTermination;
+        return $this->date_termination;
     }
 
-    public function setDateTermination(?\DateTimeImmutable $dateTermination): static
+    public function setDateTermination(?\DateTimeInterface $date_termination): static
     {
-        $this->dateTermination = $dateTermination;
+        $this->date_termination = $date_termination;
+
         return $this;
     }
 
     public function getEventId(): ?int
     {
-        return $this->eventId;
+        return $this->event_id;
     }
 
-    public function setEventId(int $eventId): static
+    public function setEventId(int $event_id): static
     {
-        $this->eventId = $eventId;
+        $this->event_id = $event_id;
+
         return $this;
     }
-} 
+
+    /**
+     * @return Collection<int, Reservation>
+     */
+    public function getReservations(): Collection
+    {
+        return $this->reservations;
+    }
+
+    public function addReservation(Reservation $reservation): static
+    {
+        if (!$this->reservations->contains($reservation)) {
+            $this->reservations->add($reservation);
+            $reservation->setAnnonce($this);
+        }
+
+        return $this;
+    }
+
+    public function removeReservation(Reservation $reservation): static
+    {
+        if ($this->reservations->removeElement($reservation)) {
+            // set the owning side to null (unless already changed)
+            if ($reservation->getAnnonce() === $this) {
+                $reservation->setAnnonce(null);
+            }
+        }
+
+        return $this;
+    }
+}

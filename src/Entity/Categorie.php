@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\CategorieRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: CategorieRepository::class)]
@@ -18,7 +19,7 @@ class Categorie
     #[ORM\Column(length: 100)]
     private ?string $nom = null;
 
-    #[ORM\Column(type: 'text', nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
     #[ORM\OneToMany(mappedBy: 'categorie', targetEntity: Car::class)]
@@ -42,6 +43,7 @@ class Categorie
     public function setNom(string $nom): static
     {
         $this->nom = $nom;
+
         return $this;
     }
 
@@ -53,6 +55,7 @@ class Categorie
     public function setDescription(?string $description): static
     {
         $this->description = $description;
+
         return $this;
     }
 
@@ -70,16 +73,19 @@ class Categorie
             $this->cars->add($car);
             $car->setCategorie($this);
         }
+
         return $this;
     }
 
     public function removeCar(Car $car): static
     {
         if ($this->cars->removeElement($car)) {
+            // set the owning side to null (unless already changed)
             if ($car->getCategorie() === $this) {
                 $car->setCategorie(null);
             }
         }
+
         return $this;
     }
-} 
+}

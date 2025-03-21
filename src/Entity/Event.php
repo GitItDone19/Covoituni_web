@@ -5,39 +5,41 @@ namespace App\Entity;
 use App\Repository\EventRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: EventRepository::class)]
+#[ORM\Table(name: 'event')]
 class Event
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $idEvent = null;
+    #[ORM\Column(name: 'id_event')]
+    private ?int $id = null;
 
     #[ORM\Column(length: 255)]
     private ?string $nom = null;
 
-    #[ORM\Column(type: 'date')]
+    #[ORM\Column(name: 'date_event', type: Types::DATE_MUTABLE)]
     private ?\DateTimeInterface $dateEvent = null;
 
-    #[ORM\Column(type: 'time')]
+    #[ORM\Column(name: 'heure_event', type: Types::TIME_MUTABLE)]
     private ?\DateTimeInterface $heureEvent = null;
 
     #[ORM\Column(length: 255)]
     private ?string $lieu = null;
 
-    #[ORM\Column(type: 'text', nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
-    #[ORM\ManyToOne(targetEntity: TypeEvent::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\ManyToOne(targetEntity: TypeEvent::class, inversedBy: 'events')]
+    #[ORM\JoinColumn(name: 'id_type', referencedColumnName: 'id_type', nullable: false)]
     private ?TypeEvent $type = null;
 
-    #[ORM\Column(length: 20)]
+    #[ORM\Column(length: 20, options: ['default' => 'ACTIVE'])]
     private ?string $status = 'ACTIVE';
 
-    #[ORM\OneToMany(mappedBy: 'event', targetEntity: EventParticipation::class)]
+    #[ORM\OneToMany(mappedBy: 'event', targetEntity: EventParticipation::class, orphanRemoval: true)]
     private Collection $participations;
 
     public function __construct()
@@ -45,9 +47,9 @@ class Event
         $this->participations = new ArrayCollection();
     }
 
-    public function getIdEvent(): ?int
+    public function getId(): ?int
     {
-        return $this->idEvent;
+        return $this->id;
     }
 
     public function getNom(): ?string
@@ -58,6 +60,7 @@ class Event
     public function setNom(string $nom): static
     {
         $this->nom = $nom;
+
         return $this;
     }
 
@@ -69,6 +72,7 @@ class Event
     public function setDateEvent(\DateTimeInterface $dateEvent): static
     {
         $this->dateEvent = $dateEvent;
+
         return $this;
     }
 
@@ -80,6 +84,7 @@ class Event
     public function setHeureEvent(\DateTimeInterface $heureEvent): static
     {
         $this->heureEvent = $heureEvent;
+
         return $this;
     }
 
@@ -91,6 +96,7 @@ class Event
     public function setLieu(string $lieu): static
     {
         $this->lieu = $lieu;
+
         return $this;
     }
 
@@ -102,6 +108,7 @@ class Event
     public function setDescription(?string $description): static
     {
         $this->description = $description;
+
         return $this;
     }
 
@@ -113,6 +120,7 @@ class Event
     public function setType(?TypeEvent $type): static
     {
         $this->type = $type;
+
         return $this;
     }
 
@@ -124,6 +132,7 @@ class Event
     public function setStatus(string $status): static
     {
         $this->status = $status;
+
         return $this;
     }
 
@@ -141,16 +150,19 @@ class Event
             $this->participations->add($participation);
             $participation->setEvent($this);
         }
+
         return $this;
     }
 
     public function removeParticipation(EventParticipation $participation): static
     {
         if ($this->participations->removeElement($participation)) {
+            // set the owning side to null (unless already changed)
             if ($participation->getEvent() === $this) {
                 $participation->setEvent(null);
             }
         }
+
         return $this;
     }
-} 
+}

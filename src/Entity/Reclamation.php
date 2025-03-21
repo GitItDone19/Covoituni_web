@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\ReclamationRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ReclamationRepository::class)]
@@ -16,20 +17,20 @@ class Reclamation
     #[ORM\Column(length: 255)]
     private ?string $subject = null;
 
-    #[ORM\Column(type: 'text')]
+    #[ORM\Column(type: Types::TEXT)]
     private ?string $description = null;
 
-    #[ORM\ManyToOne(targetEntity: Utilisateur::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\ManyToOne(inversedBy: 'reclamations')]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false)]
     private ?Utilisateur $user = null;
 
-    #[ORM\Column(length: 50)]
+    #[ORM\Column(length: 50, options: ['default' => 'pending'])]
     private ?string $state = 'pending';
 
-    #[ORM\Column(type: 'date')]
+    #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTimeInterface $date = null;
 
-    #[ORM\Column(type: 'text', nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $reply = null;
 
     public function getId(): ?int
@@ -45,6 +46,7 @@ class Reclamation
     public function setSubject(string $subject): static
     {
         $this->subject = $subject;
+
         return $this;
     }
 
@@ -56,6 +58,7 @@ class Reclamation
     public function setDescription(string $description): static
     {
         $this->description = $description;
+
         return $this;
     }
 
@@ -67,6 +70,7 @@ class Reclamation
     public function setUser(?Utilisateur $user): static
     {
         $this->user = $user;
+
         return $this;
     }
 
@@ -78,6 +82,7 @@ class Reclamation
     public function setState(string $state): static
     {
         $this->state = $state;
+
         return $this;
     }
 
@@ -89,6 +94,7 @@ class Reclamation
     public function setDate(\DateTimeInterface $date): static
     {
         $this->date = $date;
+
         return $this;
     }
 
@@ -100,6 +106,7 @@ class Reclamation
     public function setReply(?string $reply): static
     {
         $this->reply = $reply;
+
         return $this;
     }
-} 
+}

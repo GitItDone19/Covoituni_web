@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\ReservationRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ReservationRepository::class)]
@@ -10,30 +11,36 @@ class Reservation
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\Column(type: Types::BIGINT)]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: Annonce::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\ManyToOne(inversedBy: 'reservations')]
+    #[ORM\JoinColumn(name: 'annonce_id', referencedColumnName: 'id', nullable: true)]
     private ?Annonce $annonce = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(name: 'user_id', type: Types::BIGINT, nullable: true)]
     private ?int $userId = null;
 
-    #[ORM\Column]
-    private ?\DateTimeImmutable $dateReservation = null;
+    #[ORM\Column(name: 'date_reservation', type: Types::DATETIME_MUTABLE)]
+    private ?\DateTimeInterface $dateReservation = null;
 
-    #[ORM\Column(length: 20, nullable: true)]
+    #[ORM\Column(length: 20, options: ['default' => 'PENDING'])]
     private ?string $status = 'PENDING';
 
-    #[ORM\Column(type: 'text', nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $comment = null;
 
-    #[ORM\Column]
-    private ?\DateTimeImmutable $updatedAt = null;
+    #[ORM\Column(name: 'updated_at', type: Types::DATETIME_MUTABLE)]
+    private ?\DateTimeInterface $updatedAt = null;
 
-    #[ORM\Column(length: 10)]
+    #[ORM\Column(length: 10, options: ['default' => 'TRAJET'])]
     private ?string $type = 'TRAJET';
+
+    public function __construct()
+    {
+        $this->dateReservation = new \DateTime();
+        $this->updatedAt = new \DateTime();
+    }
 
     public function getId(): ?int
     {
@@ -48,6 +55,7 @@ class Reservation
     public function setAnnonce(?Annonce $annonce): static
     {
         $this->annonce = $annonce;
+
         return $this;
     }
 
@@ -59,17 +67,19 @@ class Reservation
     public function setUserId(?int $userId): static
     {
         $this->userId = $userId;
+
         return $this;
     }
 
-    public function getDateReservation(): ?\DateTimeImmutable
+    public function getDateReservation(): ?\DateTimeInterface
     {
         return $this->dateReservation;
     }
 
-    public function setDateReservation(\DateTimeImmutable $dateReservation): static
+    public function setDateReservation(\DateTimeInterface $dateReservation): static
     {
         $this->dateReservation = $dateReservation;
+
         return $this;
     }
 
@@ -78,9 +88,10 @@ class Reservation
         return $this->status;
     }
 
-    public function setStatus(?string $status): static
+    public function setStatus(string $status): static
     {
         $this->status = $status;
+
         return $this;
     }
 
@@ -92,17 +103,19 @@ class Reservation
     public function setComment(?string $comment): static
     {
         $this->comment = $comment;
+
         return $this;
     }
 
-    public function getUpdatedAt(): ?\DateTimeImmutable
+    public function getUpdatedAt(): ?\DateTimeInterface
     {
         return $this->updatedAt;
     }
 
-    public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
+    public function setUpdatedAt(\DateTimeInterface $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
+
         return $this;
     }
 
@@ -114,6 +127,7 @@ class Reservation
     public function setType(string $type): static
     {
         $this->type = $type;
+
         return $this;
     }
-} 
+}

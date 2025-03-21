@@ -5,10 +5,14 @@ namespace App\Entity;
 use App\Repository\UtilisateurRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 
 #[ORM\Entity(repositoryClass: UtilisateurRepository::class)]
-class Utilisateur
+#[ORM\Table(name: 'utilisateur')]
+class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -33,43 +37,36 @@ class Utilisateur
     #[ORM\Column(length: 255)]
     private ?string $mdp = null;
 
-    #[ORM\ManyToOne(targetEntity: Role::class)]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?Role $role = null;
+    #[ORM\Column(name: 'role_code', length: 50)]
+    private ?string $roleCode = null;
 
-    #[ORM\Column(length: 100, nullable: true)]
-    private ?string $verificationcode = null;
-
-    #[ORM\Column(type: 'decimal', precision: 3, scale: 2, nullable: true)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 3, scale: 2, options: ['default' => 5.00])]
     private ?string $rating = '5.00';
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(name: 'trips_count', options: ['default' => 0])]
     private ?int $tripsCount = 0;
 
-    #[ORM\Column]
-    private ?\DateTimeImmutable $createdAt = null;
+    #[ORM\Column(name: 'created_at', type: Types::DATETIME_MUTABLE)]
+    private ?\DateTimeInterface $createdAt = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(name: 'image_path', length: 255, nullable: true)]
     private ?string $imagePath = null;
 
-    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Reclamation::class)]
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Reclamation::class, orphanRemoval: true)]
     private Collection $reclamations;
 
-    #[ORM\OneToMany(mappedBy: 'passager', targetEntity: Avis::class)]
-    private Collection $avisPassager;
-
-    #[ORM\OneToMany(mappedBy: 'conducteur', targetEntity: Avis::class)]
-    private Collection $avisConducteur;
-
-    #[ORM\OneToMany(mappedBy: 'utilisateur', targetEntity: EventParticipation::class)]
+    #[ORM\OneToMany(mappedBy: 'utilisateur', targetEntity: EventParticipation::class, orphanRemoval: true)]
     private Collection $eventParticipations;
+
+    #[ORM\ManyToOne(inversedBy: 'utilisateurs')]
+    #[ORM\JoinColumn(name: 'role_code', referencedColumnName: 'code', nullable: false)]
+    private ?Role $role = null;
 
     public function __construct()
     {
         $this->reclamations = new ArrayCollection();
-        $this->avisPassager = new ArrayCollection();
-        $this->avisConducteur = new ArrayCollection();
         $this->eventParticipations = new ArrayCollection();
+        $this->createdAt = new \DateTime();
     }
 
     public function getId(): ?int
@@ -85,6 +82,7 @@ class Utilisateur
     public function setUsername(string $username): static
     {
         $this->username = $username;
+
         return $this;
     }
 
@@ -96,6 +94,7 @@ class Utilisateur
     public function setNom(string $nom): static
     {
         $this->nom = $nom;
+
         return $this;
     }
 
@@ -107,6 +106,7 @@ class Utilisateur
     public function setPrenom(string $prenom): static
     {
         $this->prenom = $prenom;
+
         return $this;
     }
 
@@ -118,6 +118,7 @@ class Utilisateur
     public function setTel(string $tel): static
     {
         $this->tel = $tel;
+
         return $this;
     }
 
@@ -129,6 +130,7 @@ class Utilisateur
     public function setEmail(string $email): static
     {
         $this->email = $email;
+
         return $this;
     }
 
@@ -140,29 +142,66 @@ class Utilisateur
     public function setMdp(string $mdp): static
     {
         $this->mdp = $mdp;
+
         return $this;
     }
 
-    public function getRole(): ?Role
+    public function getRoleCode(): ?string
     {
-        return $this->role;
+        return $this->roleCode;
     }
 
-    public function setRole(?Role $role): static
+    public function setRoleCode(string $roleCode): static
     {
-        $this->role = $role;
+        $this->roleCode = $roleCode;
+
         return $this;
     }
 
-    public function getVerificationcode(): ?string
+    /**
+     * @see UserInterface
+     */
+    public function getRoles(): array
     {
-        return $this->verificationcode;
+        $roles = [];
+        
+        // Add role based on roleCode
+        if ($this->roleCode === 'ADMIN') {
+            $roles[] = 'ROLE_ADMIN';
+        } elseif ($this->roleCode === 'CONDUCTEUR') {
+            $roles[] = 'ROLE_CONDUCTEUR';
+        } elseif ($this->roleCode === 'PASSAGER') {
+            $roles[] = 'ROLE_PASSAGER';
+        }
+        
+        // guarantee every user at least has ROLE_USER
+        $roles[] = 'ROLE_USER';
+
+        return array_unique($roles);
     }
 
-    public function setVerificationcode(?string $verificationcode): static
+    /**
+     * @see UserInterface
+     */
+    public function eraseCredentials(): void
     {
-        $this->verificationcode = $verificationcode;
-        return $this;
+        // If you store any temporary, sensitive data on the user, clear it here
+    }
+
+    /**
+     * @see UserInterface
+     */
+    public function getUserIdentifier(): string
+    {
+        return (string) $this->email;
+    }
+
+    /**
+     * @see PasswordAuthenticatedUserInterface
+     */
+    public function getPassword(): string
+    {
+        return $this->mdp;
     }
 
     public function getRating(): ?string
@@ -170,9 +209,10 @@ class Utilisateur
         return $this->rating;
     }
 
-    public function setRating(?string $rating): static
+    public function setRating(string $rating): static
     {
         $this->rating = $rating;
+
         return $this;
     }
 
@@ -181,20 +221,22 @@ class Utilisateur
         return $this->tripsCount;
     }
 
-    public function setTripsCount(?int $tripsCount): static
+    public function setTripsCount(int $tripsCount): static
     {
         $this->tripsCount = $tripsCount;
+
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTimeImmutable
+    public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->createdAt;
     }
 
-    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    public function setCreatedAt(\DateTimeInterface $createdAt): static
     {
         $this->createdAt = $createdAt;
+
         return $this;
     }
 
@@ -206,6 +248,19 @@ class Utilisateur
     public function setImagePath(?string $imagePath): static
     {
         $this->imagePath = $imagePath;
+
+        return $this;
+    }
+
+    public function getRole(): ?Role
+    {
+        return $this->role;
+    }
+
+    public function setRole(?Role $role): static
+    {
+        $this->role = $role;
+
         return $this;
     }
 
@@ -223,70 +278,19 @@ class Utilisateur
             $this->reclamations->add($reclamation);
             $reclamation->setUser($this);
         }
+
         return $this;
     }
 
     public function removeReclamation(Reclamation $reclamation): static
     {
         if ($this->reclamations->removeElement($reclamation)) {
+            // set the owning side to null (unless already changed)
             if ($reclamation->getUser() === $this) {
                 $reclamation->setUser(null);
             }
         }
-        return $this;
-    }
 
-    /**
-     * @return Collection<int, Avis>
-     */
-    public function getAvisPassager(): Collection
-    {
-        return $this->avisPassager;
-    }
-
-    public function addAvisPassager(Avis $avis): static
-    {
-        if (!$this->avisPassager->contains($avis)) {
-            $this->avisPassager->add($avis);
-            $avis->setPassager($this);
-        }
-        return $this;
-    }
-
-    public function removeAvisPassager(Avis $avis): static
-    {
-        if ($this->avisPassager->removeElement($avis)) {
-            if ($avis->getPassager() === $this) {
-                $avis->setPassager(null);
-            }
-        }
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Avis>
-     */
-    public function getAvisConducteur(): Collection
-    {
-        return $this->avisConducteur;
-    }
-
-    public function addAvisConducteur(Avis $avis): static
-    {
-        if (!$this->avisConducteur->contains($avis)) {
-            $this->avisConducteur->add($avis);
-            $avis->setConducteur($this);
-        }
-        return $this;
-    }
-
-    public function removeAvisConducteur(Avis $avis): static
-    {
-        if ($this->avisConducteur->removeElement($avis)) {
-            if ($avis->getConducteur() === $this) {
-                $avis->setConducteur(null);
-            }
-        }
         return $this;
     }
 
@@ -304,16 +308,19 @@ class Utilisateur
             $this->eventParticipations->add($eventParticipation);
             $eventParticipation->setUtilisateur($this);
         }
+
         return $this;
     }
 
     public function removeEventParticipation(EventParticipation $eventParticipation): static
     {
         if ($this->eventParticipations->removeElement($eventParticipation)) {
+            // set the owning side to null (unless already changed)
             if ($eventParticipation->getUtilisateur() === $this) {
                 $eventParticipation->setUtilisateur(null);
             }
         }
+
         return $this;
     }
 } 

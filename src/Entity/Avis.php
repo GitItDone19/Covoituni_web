@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\AvisRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: AvisRepository::class)]
@@ -17,14 +18,14 @@ class Avis
     private ?int $rating = null;
 
     #[ORM\ManyToOne(targetEntity: Utilisateur::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(name: 'passager_id', referencedColumnName: 'id', nullable: true)]
     private ?Utilisateur $passager = null;
 
     #[ORM\ManyToOne(targetEntity: Utilisateur::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(name: 'conducteur_id', referencedColumnName: 'id', nullable: true)]
     private ?Utilisateur $conducteur = null;
 
-    #[ORM\Column(type: 'date', nullable: true)]
+    #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $date = null;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -43,6 +44,7 @@ class Avis
     public function setRating(?int $rating): static
     {
         $this->rating = $rating;
+
         return $this;
     }
 
@@ -54,6 +56,7 @@ class Avis
     public function setPassager(?Utilisateur $passager): static
     {
         $this->passager = $passager;
+
         return $this;
     }
 
@@ -65,6 +68,7 @@ class Avis
     public function setConducteur(?Utilisateur $conducteur): static
     {
         $this->conducteur = $conducteur;
+
         return $this;
     }
 
@@ -76,6 +80,7 @@ class Avis
     public function setDate(?\DateTimeInterface $date): static
     {
         $this->date = $date;
+
         return $this;
     }
 
@@ -87,6 +92,7 @@ class Avis
     public function setCommentaire(?string $commentaire): static
     {
         $this->commentaire = $commentaire;
+
         return $this;
     }
 } 

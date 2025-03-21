@@ -3,6 +3,9 @@
 namespace App\Entity;
 
 use App\Repository\TrajetRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: TrajetRepository::class)]
@@ -16,23 +19,33 @@ class Trajet
     #[ORM\Column(length: 255)]
     private ?string $titre = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(name: 'departure_point', length: 255)]
     private ?string $departurePoint = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(name: 'arrival_point', length: 255)]
     private ?string $arrivalPoint = null;
 
-    #[ORM\Column(type: 'datetime')]
+    #[ORM\Column(name: 'departure_date', type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $departureDate = null;
 
-    #[ORM\Column(type: 'decimal', precision: 10, scale: 2)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     private ?string $price = null;
 
-    #[ORM\Column]
-    private ?\DateTimeImmutable $createdAt = null;
+    #[ORM\Column(name: 'created_at', type: Types::DATETIME_MUTABLE)]
+    private ?\DateTimeInterface $createdAt = null;
 
-    #[ORM\Column]
-    private ?\DateTimeImmutable $updatedAt = null;
+    #[ORM\Column(name: 'updated_at', type: Types::DATETIME_MUTABLE)]
+    private ?\DateTimeInterface $updatedAt = null;
+
+    #[ORM\OneToMany(mappedBy: 'trajet', targetEntity: Annonce::class)]
+    private Collection $annonces;
+
+    public function __construct()
+    {
+        $this->annonces = new ArrayCollection();
+        $this->createdAt = new \DateTime();
+        $this->updatedAt = new \DateTime();
+    }
 
     public function getId(): ?int
     {
@@ -47,6 +60,7 @@ class Trajet
     public function setTitre(string $titre): static
     {
         $this->titre = $titre;
+
         return $this;
     }
 
@@ -58,6 +72,7 @@ class Trajet
     public function setDeparturePoint(string $departurePoint): static
     {
         $this->departurePoint = $departurePoint;
+
         return $this;
     }
 
@@ -69,6 +84,7 @@ class Trajet
     public function setArrivalPoint(string $arrivalPoint): static
     {
         $this->arrivalPoint = $arrivalPoint;
+
         return $this;
     }
 
@@ -80,6 +96,7 @@ class Trajet
     public function setDepartureDate(\DateTimeInterface $departureDate): static
     {
         $this->departureDate = $departureDate;
+
         return $this;
     }
 
@@ -91,28 +108,61 @@ class Trajet
     public function setPrice(string $price): static
     {
         $this->price = $price;
+
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTimeImmutable
+    public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->createdAt;
     }
 
-    public function setCreatedAt(\DateTimeImmutable $createdAt): static
+    public function setCreatedAt(\DateTimeInterface $createdAt): static
     {
         $this->createdAt = $createdAt;
+
         return $this;
     }
 
-    public function getUpdatedAt(): ?\DateTimeImmutable
+    public function getUpdatedAt(): ?\DateTimeInterface
     {
         return $this->updatedAt;
     }
 
-    public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
+    public function setUpdatedAt(\DateTimeInterface $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Annonce>
+     */
+    public function getAnnonces(): Collection
+    {
+        return $this->annonces;
+    }
+
+    public function addAnnonce(Annonce $annonce): static
+    {
+        if (!$this->annonces->contains($annonce)) {
+            $this->annonces->add($annonce);
+            $annonce->setTrajet($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAnnonce(Annonce $annonce): static
+    {
+        if ($this->annonces->removeElement($annonce)) {
+            // set the owning side to null (unless already changed)
+            if ($annonce->getTrajet() === $this) {
+                $annonce->setTrajet(null);
+            }
+        }
+
         return $this;
     }
 } 

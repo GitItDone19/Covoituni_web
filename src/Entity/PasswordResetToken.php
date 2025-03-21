@@ -3,9 +3,11 @@
 namespace App\Entity;
 
 use App\Repository\PasswordResetTokenRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: PasswordResetTokenRepository::class)]
+#[ORM\Table(name: 'password_reset_tokens')]
 class PasswordResetToken
 {
     #[ORM\Id]
@@ -19,8 +21,8 @@ class PasswordResetToken
     #[ORM\Column(length: 255, unique: true)]
     private ?string $token = null;
 
-    #[ORM\Column]
-    private ?\DateTimeImmutable $expiration = null;
+    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    private ?\DateTimeInterface $expiration = null;
 
     public function getId(): ?int
     {
@@ -35,6 +37,7 @@ class PasswordResetToken
     public function setEmail(string $email): static
     {
         $this->email = $email;
+
         return $this;
     }
 
@@ -46,17 +49,19 @@ class PasswordResetToken
     public function setToken(string $token): static
     {
         $this->token = $token;
+
         return $this;
     }
 
-    public function getExpiration(): ?\DateTimeImmutable
+    public function getExpiration(): ?\DateTimeInterface
     {
         return $this->expiration;
     }
 
-    public function setExpiration(\DateTimeImmutable $expiration): static
+    public function setExpiration(\DateTimeInterface $expiration): static
     {
         $this->expiration = $expiration;
+
         return $this;
     }
-} 
+}

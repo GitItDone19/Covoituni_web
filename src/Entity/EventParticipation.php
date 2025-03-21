@@ -3,30 +3,37 @@
 namespace App\Entity;
 
 use App\Repository\EventParticipationRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: EventParticipationRepository::class)]
+#[ORM\Table(name: 'eventparticipation')]
 class EventParticipation
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $idParticipation = null;
+    #[ORM\Column(name: 'id_participation')]
+    private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: Event::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\ManyToOne(targetEntity: Event::class, inversedBy: 'participations')]
+    #[ORM\JoinColumn(name: 'id_event', referencedColumnName: 'id_event', nullable: false)]
     private ?Event $event = null;
 
-    #[ORM\ManyToOne(targetEntity: Utilisateur::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\ManyToOne(targetEntity: Utilisateur::class, inversedBy: 'eventParticipations')]
+    #[ORM\JoinColumn(name: 'id_utilisateur', referencedColumnName: 'id', nullable: false)]
     private ?Utilisateur $utilisateur = null;
 
-    #[ORM\Column]
-    private ?\DateTimeImmutable $dateInscription = null;
+    #[ORM\Column(name: 'date_inscription', type: Types::DATETIME_MUTABLE)]
+    private ?\DateTimeInterface $dateInscription = null;
 
-    public function getIdParticipation(): ?int
+    public function __construct()
     {
-        return $this->idParticipation;
+        $this->dateInscription = new \DateTime();
+    }
+
+    public function getId(): ?int
+    {
+        return $this->id;
     }
 
     public function getEvent(): ?Event
@@ -37,6 +44,7 @@ class EventParticipation
     public function setEvent(?Event $event): static
     {
         $this->event = $event;
+
         return $this;
     }
 
@@ -48,17 +56,19 @@ class EventParticipation
     public function setUtilisateur(?Utilisateur $utilisateur): static
     {
         $this->utilisateur = $utilisateur;
+
         return $this;
     }
 
-    public function getDateInscription(): ?\DateTimeImmutable
+    public function getDateInscription(): ?\DateTimeInterface
     {
         return $this->dateInscription;
     }
 
-    public function setDateInscription(\DateTimeImmutable $dateInscription): static
+    public function setDateInscription(\DateTimeInterface $dateInscription): static
     {
         $this->dateInscription = $dateInscription;
+
         return $this;
     }
-} 
+}

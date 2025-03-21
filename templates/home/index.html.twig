@@ -1,0 +1,255 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}CovoitUni - University Carpooling{% endblock %}
+
+{% block body %}
+    {# Hero Section #}
+    <div class="relative min-h-screen w-full flex items-center justify-center overflow-hidden">
+        {# Background Image with Parallax Effect #}
+        <div class="absolute inset-0 z-0">
+            <img src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2021&q=80" 
+                 alt="Background" 
+                 class="w-full h-full object-cover scale-110 motion-safe:animate-subtle-zoom">
+            <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-primary/40 mix-blend-multiply"></div>
+        </div>
+
+        {# Decorative Elements #}
+        <div class="absolute top-20 left-10 w-64 h-64 bg-primary/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
+        <div class="absolute bottom-20 right-10 w-64 h-64 bg-primary-light/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
+        <div class="absolute bottom-40 left-1/4 w-64 h-64 bg-primary-dark/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
+
+        {# Content #}
+        <div class="relative z-10 container mx-auto px-4 text-center">
+            <h1 class="hero-title text-6xl md:text-7xl lg:text-8xl font-extrabold mb-8 text-white drop-shadow-2xl tracking-tight">
+                Find Your Perfect
+                <span class="block mt-2 bg-clip-text text-transparent bg-gradient-to-r from-primary-light via-primary to-primary-dark animate-gradient-x">University Ride</span>
+            </h1>
+            <p class="hero-subtitle text-xl md:text-2xl lg:text-3xl mb-12 text-white/90 max-w-3xl mx-auto leading-relaxed">Connect with fellow students for safe and affordable carpooling</p>
+            <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+                <a href="{{ path('app_rides') }}" 
+                   class="group inline-flex items-center px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-primary to-primary-dark rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 group-hover:animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Find a Ride
+                </a>
+                <a href="{{ path('app_register') }}" 
+                   class="group inline-flex items-center px-8 py-4 text-lg font-medium border-2 border-white text-white hover:bg-white hover:text-primary rounded-xl transition-all duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 group-hover:animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                    Sign Up Now
+                </a>
+            </div>
+        </div>
+
+        {# Animated Scroll Indicator #}
+        <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+            <div class="p-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    {# Latest Rides Section #}
+    <section class="relative py-24 w-full bg-gradient-to-b from-white to-primary-ultra-light/30">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-16">
+                <h2 class="section-title text-4xl md:text-5xl font-bold text-text-dark mb-4 sm:mb-0">
+                    <span class="bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark">Latest</span> Rides
+                </h2>
+                <a href="{{ path('app_rides') }}" class="group flex items-center text-primary hover:text-primary-dark font-medium transition-all border border-primary/20 hover:border-primary px-4 py-2 rounded-full">
+                    View All
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                </a>
+        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {% for ride in latest_rides %}
+                    <div class="group bg-white backdrop-blur-md bg-opacity-80 rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100 hover:border-primary/20">
+                        <div class="flex justify-between items-start mb-6">
+                            <h3 class="font-semibold text-xl group-hover:text-primary transition-colors duration-300">{{ ride.titre }}</h3>
+                            <span class="px-4 py-1 bg-primary-ultra-light text-primary rounded-full text-sm font-medium shadow-sm">{{ ride.trajet.price }}€</span>
+                        </div>
+                        <div class="space-y-5">
+                            <div class="flex items-center">
+                                <span class="w-12 h-12 flex items-center justify-center bg-primary-ultra-light rounded-full mr-4 text-primary group-hover:scale-110 transition-transform">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    </svg>
+                                </span>
+                                <div>
+                                    <p class="text-sm text-gray-500 uppercase tracking-wide">From</p>
+                                    <p class="font-medium text-lg">{{ ride.trajet.departurePoint }}</p>
+                                </div>
+                    </div>
+                            <div class="flex items-center">
+                                <span class="w-12 h-12 flex items-center justify-center bg-primary-ultra-light rounded-full mr-4 text-primary group-hover:scale-110 transition-transform">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    </svg>
+                                </span>
+                                <div>
+                                    <p class="text-sm text-gray-500 uppercase tracking-wide">To</p>
+                                    <p class="font-medium text-lg">{{ ride.trajet.arrivalPoint }}</p>
+                    </div>
+                </div>
+                            <div class="flex items-center">
+                                <span class="w-12 h-12 flex items-center justify-center bg-primary-ultra-light rounded-full mr-4 text-primary group-hover:scale-110 transition-transform">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </span>
+                                <div>
+                                    <p class="text-sm text-gray-500 uppercase tracking-wide">Date & Time</p>
+                                    <p class="font-medium text-lg">{{ ride.trajet.departureDate|date('d M Y H:i') }}</p>
+                                </div>
+                </div>
+        </div>
+                        <div class="mt-8 flex justify-between items-center">
+                            <span class="inline-flex items-center px-4 py-2 bg-primary-ultra-light text-primary rounded-full text-sm font-medium">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                {{ ride.availableSeats }} seats
+                            </span>
+                            <a href="{{ path('app_rides_show', {'id': ride.id}) }}" 
+                               class="inline-flex items-center px-4 py-2 rounded-full border border-primary/30 text-primary hover:text-white hover:bg-primary transition-all duration-300 group">
+                                View Details
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </a>
+        </div>
+                    </div>
+                {% else %}
+                    <div class="col-span-3 bg-white backdrop-blur-md bg-opacity-80 rounded-2xl p-12 text-center border border-gray-100 shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <p class="text-gray-500 text-xl">No rides available at the moment.</p>
+                    </div>
+                {% endfor %}
+                </div>
+        </div>
+    </section>
+
+    {# Features Section #}
+    <section class="relative py-32 w-full overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-primary-ultra-light/40 to-white"></div>
+        <div class="container mx-auto px-4 relative z-10">
+            <h2 class="section-title text-4xl md:text-5xl font-bold text-center mb-20">
+                Why Choose <span class="bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark">CovoitUni</span>?
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-16">
+                <div class="feature-box text-center group p-8 rounded-2xl hover:bg-white/80 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-gray-100">
+                    <div class="relative w-20 h-20 mx-auto mb-6">
+                        <div class="absolute inset-0 bg-gradient-to-r from-primary to-primary-dark rounded-2xl opacity-20 group-hover:opacity-30 blur-xl transition-opacity"></div>
+                        <div class="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-primary to-primary-dark rounded-2xl transform group-hover:rotate-6 group-hover:scale-110 transition-all duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <h3 class="feature-title text-2xl font-semibold mb-4 group-hover:text-primary transition-colors">Save Money</h3>
+                    <p class="text-gray-600 text-lg group-hover:text-gray-800 transition-colors">Split travel costs with fellow students and save on your commute.</p>
+                </div>
+                <div class="feature-box text-center group p-8 rounded-2xl hover:bg-white/80 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-gray-100">
+                    <div class="relative w-20 h-20 mx-auto mb-6">
+                        <div class="absolute inset-0 bg-gradient-to-r from-primary to-primary-dark rounded-2xl opacity-20 group-hover:opacity-30 blur-xl transition-opacity"></div>
+                        <div class="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-primary to-primary-dark rounded-2xl transform group-hover:rotate-6 group-hover:scale-110 transition-all duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+            </div>
+                    <h3 class="feature-title text-2xl font-semibold mb-4 group-hover:text-primary transition-colors">Eco-Friendly</h3>
+                    <p class="text-gray-600 text-lg group-hover:text-gray-800 transition-colors">Reduce your carbon footprint by sharing rides with others.</p>
+                </div>
+                <div class="feature-box text-center group p-8 rounded-2xl hover:bg-white/80 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-gray-100">
+                    <div class="relative w-20 h-20 mx-auto mb-6">
+                        <div class="absolute inset-0 bg-gradient-to-r from-primary to-primary-dark rounded-2xl opacity-20 group-hover:opacity-30 blur-xl transition-opacity"></div>
+                        <div class="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-primary to-primary-dark rounded-2xl transform group-hover:rotate-6 group-hover:scale-110 transition-all duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                        </div>
+            </div>
+                    <h3 class="feature-title text-2xl font-semibold mb-4 group-hover:text-primary transition-colors">Community</h3>
+                    <p class="text-gray-600 text-lg group-hover:text-gray-800 transition-colors">Connect with students from your university and make new friends.</p>
+                </div>
+            </div>
+        </div>
+        <div class="absolute top-1/2 -right-40 w-80 h-80 bg-primary-ultra-light rounded-full mix-blend-multiply filter blur-3xl opacity-70"></div>
+        <div class="absolute bottom-0 -left-20 w-60 h-60 bg-primary-light/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70"></div>
+    </section>
+
+    {# CTA Section #}
+    <section class="relative py-32 w-full">
+        <div class="absolute inset-0 z-0">
+            <img src="https://images.unsplash.com/photo-1464746133101-a2c3f88e0dd9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2043&q=80" 
+                 alt="Background" 
+                 class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-r from-primary/95 to-primary-dark/95 backdrop-blur-sm"></div>
+        </div>
+        
+        <div class="relative z-10 container mx-auto px-4 text-center">
+            <h2 class="text-5xl md:text-6xl font-bold text-white mb-8 drop-shadow-lg">Ready to Start Your Journey?</h2>
+            <p class="text-xl md:text-2xl text-white/90 mb-12 max-w-3xl mx-auto">Join our community today and experience the benefits of carpooling</p>
+            <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+                <a href="{{ path('app_register') }}" 
+                   class="group inline-flex items-center px-8 py-4 text-lg font-medium bg-white text-primary hover:bg-primary-ultra-light rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 group-hover:animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                    Sign Up Now
+                </a>
+                <a href="{{ path('app_rides') }}" 
+                   class="group inline-flex items-center px-8 py-4 text-lg font-medium border-2 border-white text-white hover:bg-white hover:text-primary rounded-xl transition-all duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 group-hover:animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Find Rides
+                </a>
+            </div>
+        </div>
+    </section>
+
+    {# Add custom styles for animations #}
+    <style>
+        @keyframes subtle-zoom {
+            from { transform: scale(1); }
+            to { transform: scale(1.05); }
+        }
+        @keyframes gradient-x {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @keyframes blob {
+            0% { transform: translate(0px, 0px) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+        .animate-subtle-zoom {
+            animation: subtle-zoom 20s ease-in-out infinite alternate;
+        }
+        .animate-gradient-x {
+            animation: gradient-x 15s ease infinite;
+            background-size: 200% 200%;
+        }
+        .animate-blob {
+            animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+            animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+            animation-delay: 4s;
+        }
+    </style>
+{% endblock %} 
