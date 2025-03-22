@@ -1,0 +1,102 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Reclamation List{% endblock %}
+
+{% block body %}
+    <div class="reclamation-container container">
+        <h1 class="reclamation-title">Reclamation List</h1>
+
+        <a href="{{ path('app_reclamation_new') }}" class="btn reclamation-btn reclamation-btn-primary mb-4">
+            <i class="fas fa-plus-circle me-2"></i> Create New Reclamation
+        </a>
+
+        {% if reclamations|length > 0 %}
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 justify-content-center align-items-center">
+                {% for reclamation in reclamations %}
+                    <div class="col" style="max-width: 350px;">
+                        <div class="card reclamation-card h-100 d-flex flex-column">
+                            <div class="reclamation-card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0 text-truncate" title="{{ reclamation.subject }}">
+                                    #{{ reclamation.id }} - {{ reclamation.subject }}
+                                </h5>
+                                <span class="reclamation-badge badge badge-{{ reclamation.state }}">
+                                    {{ reclamation.state }}
+                                </span>
+                            </div>
+                            <div class="reclamation-card-body d-flex flex-column flex-grow-1">
+                                <div class="mb-3">
+                                    <p class="mb-1"><strong>Date:</strong></p>
+                                    <p class="text-muted">{{ reclamation.date ? reclamation.date|date('F d, Y') : 'Not specified' }}</p>
+                                </div>
+                                <div class="description-preview mb-3 flex-grow-1">
+                                    <p class="mb-1"><strong>Description:</strong></p>
+                                    <p class="text-muted description-text">
+                                        {{ reclamation.description|striptags|length > 100 
+                                           ? reclamation.description|striptags|slice(0, 100) ~ '...' 
+                                           : reclamation.description|striptags }}
+                                    </p>
+                                </div>
+                                <div class="d-flex justify-content-between mt-auto">
+                                    <a href="{{ path('app_reclamation_show', {'id': reclamation.id}) }}" 
+                                       class="btn btn-info btn-sm" title="View">
+                                       <i class="fas fa-eye me-1"></i> View
+                                    </a>
+                                    <a href="{{ path('app_reclamation_edit', {'id': reclamation.id}) }}" 
+                                       class="btn btn-primary btn-sm" title="Edit">
+                                       <i class="fas fa-edit me-1"></i> Edit
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info text-center py-5">
+                <i class="fas fa-info-circle fa-2x mb-3"></i>
+                <h4>No Reclamations Found</h4>
+                <p class="mb-0">There are currently no reclamations to display.</p>
+            </div>
+        {% endif %}
+        
+        {# Flash Messages #}
+        {% for label, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="alert alert-{{ label }} mt-4">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+
+    <style>
+        .description-text {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            height: 4.5em;
+        }
+        
+        .row.align-items-center .col {
+            display: flex;
+            align-items: stretch;
+        }
+        
+        .reclamation-card {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .reclamation-card-body {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+        
+        .description-preview {
+            flex-grow: 1;
+        }
+    </style>
+{% endblock %} 

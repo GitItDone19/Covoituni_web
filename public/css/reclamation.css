@@ -1,0 +1,289 @@
+/* Reclamation Module Styles */
+.reclamation-container {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    padding: 30px;
+    margin: 20px auto;
+    max-width: 1000px;
+    width: 90%;
+}
+
+.reclamation-title {
+    color: #3c4858;
+    font-weight: 600;
+    margin-bottom: 25px;
+    position: relative;
+    padding-bottom: 15px;
+}
+
+.reclamation-title:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 50px;
+    height: 3px;
+    background: linear-gradient(to right, #1abc9c, #3498db);
+}
+
+/* Table styles */
+.reclamation-table {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.reclamation-table thead {
+    background-color: #2c3e50;
+    color: white;
+}
+
+.reclamation-table th {
+    font-weight: 500;
+    border: none !important;
+}
+
+.reclamation-row:hover {
+    background-color: #f1f8fe !important;
+    transition: background-color 0.3s ease;
+}
+
+/* Card styles */
+.reclamation-card {
+    border: none;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.reclamation-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.reclamation-card-header {
+    background: linear-gradient(to right, #3c4858, #5d6d7e);
+    color: white;
+    border-bottom: none;
+    padding: 15px 20px;
+}
+
+.reclamation-card-body {
+    padding: 25px;
+}
+
+.reclamation-badge {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border-radius: 25px;
+}
+
+/* Form styles */
+.reclamation-form-control {
+    border-radius: 5px;
+    padding: 10px 15px;
+    border: 1px solid #e0e6ed;
+    transition: all 0.3s ease;
+}
+
+.reclamation-form-control:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+.reclamation-form-label {
+    color: #3c4858;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.reclamation-textarea {
+    min-height: 120px;
+}
+
+/* Buttons */
+.reclamation-btn {
+    border-radius: 5px;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.reclamation-btn-primary {
+    background: linear-gradient(to right, #1abc9c, #3498db);
+    border: none;
+}
+
+.reclamation-btn-primary:hover {
+    background: linear-gradient(to right, #16a085, #2980b9);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+}
+
+.reclamation-btn-secondary {
+    background: linear-gradient(to right, #7f8c8d, #95a5a6);
+    border: none;
+}
+
+.reclamation-btn-danger {
+    background: linear-gradient(to right, #e74c3c, #c0392b);
+    border: none;
+}
+
+.reclamation-btn-danger:hover {
+    background: linear-gradient(to right, #c0392b, #e74c3c);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+}
+
+/* Status badges */
+.badge-pending {
+    background-color: #f39c12;
+    color: white;
+}
+
+.badge-in-progress {
+    background-color: #3498db;
+    color: white;
+}
+
+.badge-resolved {
+    background-color: #2ecc71;
+    color: white;
+}
+
+.badge-rejected {
+    background-color: #e74c3c;
+    color: white;
+}
+
+/* Animation for form submission */
+@keyframes formSubmit {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+}
+
+.btn-submit-animate:active {
+    animation: formSubmit 0.3s ease;
+}
+
+/* Form validation styling */
+.required:after {
+    content: " *";
+    color: #e74c3c;
+}
+
+.invalid-feedback {
+    display: block;
+    color: #e74c3c;
+    margin-top: 0.25rem;
+}
+
+.help-text {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    margin-top: 0.25rem;
+}
+
+/* Make alerts fade-in */
+.alert {
+    opacity: 0;
+    animation: fadeIn 0.5s forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Center form elements */
+.reclamation-form-centered {
+    text-align: center;
+}
+
+.reclamation-form-centered .form-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.reclamation-form-centered .reclamation-form-label {
+    text-align: center;
+    width: 100%;
+}
+
+.reclamation-form-centered .form-control {
+    text-align: center;
+    width: 80%;
+    margin: 0 auto;
+}
+
+.reclamation-form-centered .invalid-feedback,
+.reclamation-form-centered .form-text {
+    text-align: center;
+    width: 80%;
+    margin: 0.25rem auto;
+}
+
+.reclamation-form-centered .btn-group {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+/* Button container outside card */
+.reclamation-buttons {
+    margin: 30px auto;
+    padding: 15px;
+    border-radius: 30px;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(5px);
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.05);
+    max-width: 500px;
+}
+
+.reclamation-buttons .reclamation-btn {
+    padding: 12px 25px;
+    margin: 0 10px;
+    min-width: 150px;
+    border-radius: 30px;
+    transition: all 0.3s ease;
+}
+
+.reclamation-buttons .reclamation-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Vertically align cards */
+.reclamation-card-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.reclamation-card-col {
+    display: flex;
+    align-items: stretch;
+}
+
+.reclamation-card {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.reclamation-card-body {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.reclamation-card .description-preview {
+    flex-grow: 1;
+}
+
+.reclamation-card .card-actions {
+    margin-top: auto;
+} 
