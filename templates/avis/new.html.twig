@@ -1,0 +1,346 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Rate a Driver{% endblock %}
+
+{% block body %}
+    <div class="avis-page-wrapper">
+        <div class="container mt-4 mb-5">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-7">
+                    <div class="avis-card">
+                        <div class="avis-card-header">
+                            <h1 class="avis-title">Rate a Driver</h1>
+                            <p class="text-muted mb-0">Share your experience with this driver</p>
+                        </div>
+                        <div class="avis-card-body">
+                            {{ form_start(form, {'attr': {'id': 'avis-form'}}) }}
+                            
+                            <div class="driver-selection mb-4">
+                                {{ form_row(form.conducteur, {
+                                    'label': 'Select Driver',
+                                    'attr': {'class': 'avis-select'}
+                                }) }}
+                            </div>
+                            
+                            <div class="rating-section mb-4">
+                                <label class="rating-label">How was your experience?</label>
+                                <div class="rating-container">
+                                    <div class="star-rating-input">
+                                        <div class="rating-value-labels d-flex justify-content-between px-3">
+                                            <span>Poor</span>
+                                            <span>Excellent</span>
+                                        </div>
+                                        <div class="stars">
+                                            {% for i in 1..5 %}
+                                                <span class="star" data-rating="{{ i }}">★</span>
+                                            {% endfor %}
+                                        </div>
+                                        <div class="rating-selected-text"></div>
+                                        {{ form_widget(form.rating) }}
+                                        {{ form_errors(form.rating) }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="comment-section mb-4">
+                                {{ form_row(form.commentaire, {
+                                    'label': 'Your Comments',
+                                    'attr': {
+                                        'placeholder': 'Tell us about your experience with this driver...',
+                                        'rows': 4,
+                                        'class': 'avis-textarea'
+                                    }
+                                }) }}
+                            </div>
+                            
+                            <div class="action-buttons">
+                                <a href="{{ path('app_avis_index') }}" class="avis-btn avis-btn-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i> Back to list
+                                </a>
+                                <button type="submit" class="avis-btn avis-btn-primary">
+                                    <i class="fas fa-save me-1"></i> Submit Review
+                                </button>
+                            </div>
+                            
+                            {{ form_end(form) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .avis-page-wrapper {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            padding: 40px 0;
+            background-image: linear-gradient(to bottom right, rgba(240, 240, 255, 0.5), rgba(240, 255, 250, 0.5));
+        }
+        
+        .avis-card {
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: none;
+            margin: 0 auto;
+        }
+        
+        .avis-card:hover {
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+        
+        .avis-card-header {
+            background: linear-gradient(135deg, #4a6cff 0%, #3056e3 100%);
+            color: white;
+            padding: 25px 30px;
+            border-bottom: none;
+            text-align: center;
+        }
+        
+        .avis-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        
+        .avis-card-body {
+            padding: 30px;
+        }
+        
+        .rating-label {
+            display: block;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .rating-container {
+            background-color: #f9f9ff;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #e6e9ff;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05) inset;
+            margin-bottom: 10px;
+        }
+        
+        .rating-container.rating-selected {
+            border-color: #ffcc00;
+            background-color: #fffbeb;
+            box-shadow: 0 0 15px rgba(255, 204, 0, 0.2);
+        }
+        
+        .stars {
+            font-size: 3.8rem;
+            cursor: pointer;
+            text-align: center;
+            margin: 15px 0;
+            position: relative;
+            user-select: none;
+        }
+        
+        .star {
+            color: #ddd;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+            cursor: pointer;
+            display: inline-block;
+        }
+        
+        .star.active {
+            color: #ffcc00;
+            transform: scale(1.2);
+            text-shadow: 0 0 20px rgba(255, 193, 7, 0.7);
+        }
+        
+        .star:hover {
+            transform: scale(1.3);
+            color: #ffdd00;
+        }
+        
+        .stars:hover .star {
+            color: #ddd;
+        }
+        
+        .stars:hover .star:hover,
+        .stars:hover .star:hover ~ .star {
+            color: #ffcc00;
+        }
+        
+        .rating-value-labels {
+            color: #7b8195;
+            font-size: 0.9rem;
+            margin-bottom: -5px;
+            font-weight: 500;
+        }
+        
+        .rating-selected-text {
+            font-weight: 600;
+            color: #4a6cff;
+            min-height: 24px;
+            font-size: 1.1rem;
+            margin-top: 8px;
+        }
+        
+        .hidden-rating-input {
+            display: none;
+        }
+        
+        /* Form styling */
+        .avis-select,
+        .avis-textarea {
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            padding: 12px 15px;
+            transition: all 0.3s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        .avis-select:focus,
+        .avis-textarea:focus {
+            border-color: #4a6cff;
+            box-shadow: 0 0 0 3px rgba(74, 108, 255, 0.2);
+            outline: none;
+        }
+        
+        /* Button styling */
+        .action-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+        
+        .avis-btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+        
+        .avis-btn-primary {
+            background: linear-gradient(to right, #4caf50, #45a049);
+            color: white;
+            box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+        }
+        
+        .avis-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4);
+            background: linear-gradient(to right, #4caf50, #3d8b3d);
+            color: white;
+        }
+        
+        .avis-btn-secondary {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+        }
+        
+        .avis-btn-secondary:hover {
+            background-color: #e9ecef;
+            color: #495057;
+            text-decoration: none;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .avis-page-wrapper {
+                padding: 20px 0;
+            }
+            
+            .avis-card-header {
+                padding: 20px;
+            }
+            
+            .avis-card-body {
+                padding: 20px;
+            }
+            
+            .stars {
+                font-size: 3.2rem;
+            }
+            
+            .star {
+                margin: 0 6px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .avis-btn {
+                width: 100%;
+            }
+        }
+    </style>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const stars = document.querySelectorAll('.star');
+            const ratingInput = document.querySelector('.hidden-rating-input');
+            const ratingContainer = document.querySelector('.rating-container');
+            const ratingText = document.querySelector('.rating-selected-text');
+            
+            // Rating descriptions for feedback
+            const ratingDescriptions = {
+                1: "Poor - Needs significant improvement",
+                2: "Fair - Below average experience",
+                3: "Good - Satisfactory experience",
+                4: "Very Good - Above average experience",
+                5: "Excellent - Outstanding experience"
+            };
+            
+            // Set up star rating functionality
+            stars.forEach(star => {
+                star.addEventListener('click', function() {
+                    const rating = this.getAttribute('data-rating');
+                    
+                    // Add a visual cue that rating was selected
+                    ratingContainer.classList.add('rating-selected');
+                    
+                    // Update the hidden input value
+                    ratingInput.value = rating;
+                    
+                    // Update visual stars
+                    stars.forEach(s => {
+                        if (s.getAttribute('data-rating') <= rating) {
+                            s.classList.add('active');
+                        } else {
+                            s.classList.remove('active');
+                        }
+                    });
+                    
+                    // Update the text description
+                    ratingText.textContent = ratingDescriptions[rating];
+                });
+            });
+            
+            // Initialize with existing value if present
+            if (ratingInput.value) {
+                const rating = ratingInput.value;
+                stars.forEach(s => {
+                    if (s.getAttribute('data-rating') <= rating) {
+                        s.classList.add('active');
+                    }
+                });
+                ratingContainer.classList.add('rating-selected');
+                ratingText.textContent = ratingDescriptions[rating];
+            }
+        });
+    </script>
+{% endblock %} 

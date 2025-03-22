@@ -1,0 +1,140 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit Driver Review{% endblock %}
+
+{% block body %}
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h1 class="h3 mb-0">Edit Driver Review</h1>
+                    </div>
+                    <div class="card-body">
+                        {{ form_start(form, {'attr': {'id': 'avis-form'}}) }}
+                        
+                        {{ form_row(form.conducteur, {'label': 'Driver'}) }}
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Your Rating</label>
+                            <div class="rating-container rating-selected">
+                                <div class="star-rating-input">
+                                    <div class="stars">
+                                        {% for i in 1..5 %}
+                                            <i class="fas fa-star {{ i <= avi.rating ? 'active' : '' }}" data-rating="{{ i }}"></i>
+                                        {% endfor %}
+                                    </div>
+                                    {{ form_widget(form.rating) }}
+                                    {{ form_errors(form.rating) }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {{ form_row(form.commentaire) }}
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ path('app_avis_index') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Back to list
+                            </a>
+                            <div>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save me-1"></i> Update Review
+                                </button>
+                                {{ include('avis/_delete_form.html.twig') }}
+                            </div>
+                        </div>
+                        
+                        {{ form_end(form) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .rating-container {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .rating-container.rating-selected {
+            border-color: #ffcc00;
+            background-color: #fffbeb;
+        }
+        
+        .star-rating-input {
+            margin-bottom: 1rem;
+        }
+        
+        .star-rating-input .stars {
+            font-size: 3rem;
+            cursor: pointer;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .star-rating-input .fa-star {
+            color: #ddd;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+            text-shadow: 0px 0px 1px rgba(0,0,0,0.2);
+        }
+        
+        .star-rating-input .fa-star.active {
+            color: #ffcc00;
+            transform: scale(1.1);
+        }
+        
+        .star-rating-input .fa-star:hover {
+            color: #ffcc00;
+            transform: scale(1.2);
+        }
+        
+        .star-rating-input .stars:hover .fa-star {
+            color: #ddd;
+        }
+        
+        .star-rating-input .stars:hover .fa-star:hover, 
+        .star-rating-input .stars:hover .fa-star:hover ~ .fa-star {
+            color: #ffcc00;
+        }
+        
+        .hidden-rating-input {
+            display: none;
+        }
+        
+        .form-label.fw-bold {
+            font-size: 1.1rem;
+        }
+    </style>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const stars = document.querySelectorAll('.star-rating-input .fa-star');
+            const ratingInput = document.querySelector('.hidden-rating-input');
+            
+            // Set up star rating functionality
+            stars.forEach(star => {
+                star.addEventListener('click', function() {
+                    const rating = this.getAttribute('data-rating');
+                    
+                    // Update the hidden input value
+                    ratingInput.value = rating;
+                    
+                    // Update visual stars
+                    stars.forEach(s => {
+                        if (s.getAttribute('data-rating') <= rating) {
+                            s.classList.add('active');
+                        } else {
+                            s.classList.remove('active');
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+{% endblock %} 
