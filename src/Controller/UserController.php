@@ -20,21 +20,6 @@ class UserController extends AbstractController
         $this->userService = $userService;
     }
 
-    #[Route('/profile', name: 'app_user_profile')]
-    public function profile(): Response
-    {
-        // Get the current user
-        $user = $this->getUser();
-        
-        if (!$user) {
-            return $this->redirectToRoute('app_login');
-        }
-
-        return $this->render('user/profile.html.twig', [
-            'user' => $user,
-        ]);
-    }
-
     #[Route('/profile/edit', name: 'app_user_edit_profile')]
     public function editProfile(Request $request): Response
     {
@@ -56,7 +41,15 @@ class UserController extends AbstractController
                 $this->userService->updateUserProfile($user->getId(), $data);
                 
                 $this->addFlash('success', 'Profile updated successfully');
-                return $this->redirectToRoute('app_user_profile');
+                
+                // Redirect based on user role
+                if (in_array('ROLE_ADMIN', $user->getRoles())) {
+                    return $this->redirectToRoute('app_admin_dashboard');
+                } elseif (in_array('ROLE_CONDUCTEUR', $user->getRoles())) {
+                    return $this->redirectToRoute('app_conducteur_dashboard');
+                } else {
+                    return $this->redirectToRoute('app_passager_dashboard');
+                }
             } catch (\Exception $e) {
                 $this->addFlash('error', $e->getMessage());
             }
@@ -93,7 +86,14 @@ class UserController extends AbstractController
 
                     if ($success) {
                         $this->addFlash('success', 'Password changed successfully');
-                        return $this->redirectToRoute('app_user_profile');
+                        // Redirect based on user role
+                        if (in_array('ROLE_ADMIN', $user->getRoles())) {
+                            return $this->redirectToRoute('app_admin_dashboard');
+                        } elseif (in_array('ROLE_CONDUCTEUR', $user->getRoles())) {
+                            return $this->redirectToRoute('app_conducteur_dashboard');
+                        } else {
+                            return $this->redirectToRoute('app_passager_dashboard');
+                        }
                     } else {
                         $this->addFlash('error', 'Current password is incorrect');
                     }

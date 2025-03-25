@@ -5,6 +5,9 @@ namespace App\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\HttpFoundation\Request;
+use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\Reclamation;
 
 #[Route('/conducteur')]
 class ConducteurController extends AbstractController
@@ -46,6 +49,38 @@ class ConducteurController extends AbstractController
         return $this->render('conducteur/reclamation.html.twig', [
             'user' => $user
         ]);
+    }
+    
+    #[Route('/reclamation/submit', name: 'app_conducteur_reclamation_submit', methods: ['POST'])]
+    public function submitReclamation(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this page
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        $user = $this->getUser();
+        $subject = $request->request->get('subject');
+        $description = $request->request->get('description');
+        
+        // Validate input
+        if (empty($subject) || empty($description)) {
+            $this->addFlash('error', 'Le sujet et la description sont requis.');
+            return $this->redirectToRoute('app_conducteur_reclamation');
+        }
+        
+        // Create new reclamation
+        $reclamation = new Reclamation();
+        $reclamation->setUser($user);
+        $reclamation->setSubject($subject);
+        $reclamation->setDescription($description);
+        $reclamation->setState('pending');
+        $reclamation->setDate(new \DateTime());
+        
+        // Save the reclamation
+        $entityManager->persist($reclamation);
+        $entityManager->flush();
+        
+        $this->addFlash('success', 'Votre réclamation a été envoyée avec succès.');
+        return $this->redirectToRoute('app_conducteur_dashboard');
     }
     
     #[Route('/annonce', name: 'app_conducteur_annonce')]

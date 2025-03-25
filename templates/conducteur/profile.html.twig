@@ -31,6 +31,14 @@
                         </svg>
                         Edit Profile
                     </a>
+                    <div class="mt-2">
+                        <a href="{{ path('app_user_change_password') }}" class="inline-flex items-center px-4 py-2 bg-white border border-primary text-primary rounded-xl shadow-md hover:shadow-lg hover:bg-primary hover:text-white transition-all duration-300 transform hover:-translate-y-0.5 text-sm font-medium">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            Change Password
+                        </a>
+                    </div>
                 </div>
             </div>
             <div class="w-full md:w-2/3">
@@ -60,6 +68,14 @@
                     <div class="bg-gray-50 rounded-xl p-4 shadow-sm">
                         <p class="text-sm text-gray-500 mb-1">Completed Trips</p>
                         <p class="font-medium text-gray-800">{{ user.tripsCount ?? '0' }}</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-4 shadow-sm">
+                        <p class="text-sm text-gray-500 mb-1">Role</p>
+                        <p class="font-medium text-gray-800">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-ultra-light text-primary">
+                                {{ user.role.libelle }}
+                            </span>
+                        </p>
                     </div>
                 </div>
             </div>
