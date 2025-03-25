@@ -12,8 +12,8 @@ use Doctrine\ORM\Mapping as ORM;
 class Trajet
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: "IDENTITY")]
+    #[ORM\Column(type: "integer")]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
@@ -24,9 +24,6 @@ class Trajet
 
     #[ORM\Column(name: 'arrival_point', length: 255)]
     private ?string $arrivalPoint = null;
-
-    #[ORM\Column(name: 'departure_date', type: Types::DATETIME_MUTABLE)]
-    private ?\DateTimeInterface $departureDate = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     private ?string $price = null;
@@ -84,18 +81,6 @@ class Trajet
     public function setArrivalPoint(string $arrivalPoint): static
     {
         $this->arrivalPoint = $arrivalPoint;
-
-        return $this;
-    }
-
-    public function getDepartureDate(): ?\DateTimeInterface
-    {
-        return $this->departureDate;
-    }
-
-    public function setDepartureDate(\DateTimeInterface $departureDate): static
-    {
-        $this->departureDate = $departureDate;
 
         return $this;
     }

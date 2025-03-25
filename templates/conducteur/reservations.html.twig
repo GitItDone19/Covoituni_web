@@ -1,159 +1,174 @@
 {% extends 'layouts/user_layout.html.twig' %}
 
-{% block title %}Mes réservations{% endblock %}
+{% block title %}Gérer les Réservations - Conducteur{% endblock %}
 
 {% block content %}
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800">Mes réservations</h1>
-        <p class="text-gray-600">Gérez les réservations pour vos trajets</p>
-    </div>
-    
-    <div class="glass-card bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-xl p-8">
-        <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            Réservations en attente
-        </h2>
-        
-        {% if reservationsEnAttente is defined and reservationsEnAttente|length > 0 %}
-            <div class="space-y-4">
-                {% for reservation in reservationsEnAttente %}
-                    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
-                        <div class="p-4">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h3 class="font-bold text-lg text-gray-900">{{ reservation.trajet.departVille }} → {{ reservation.trajet.arriveeVille }}</h3>
-                                    <p class="text-gray-600">{{ reservation.trajet.dateDepart|date('d M Y') }} à {{ reservation.trajet.heureDepart|date('H:i') }}</p>
-                                </div>
-                                <span class="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">En attente</span>
+    <div class="w-full">
+        <div class="glass-card bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-xl p-8 mb-8">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold mb-2 text-gray-800">Gestion des réservations</h1>
+                    <p class="text-gray-600">Consultez et gérez les réservations pour vos annonces de covoiturage.</p>
+                </div>
+                <a href="{{ path('app_conducteur_liste_annonce') }}" class="inline-flex items-center px-4 py-2 bg-gray-50 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-100 transition duration-300">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Retour aux annonces
+                </a>
+            </div>
+
+            {% for message in app.flashes('success') %}
+                <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded" role="alert">
+                    <p>{{ message }}</p>
+                </div>
+            {% endfor %}
+            
+            {% for message in app.flashes('error') %}
+                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded" role="alert">
+                    <p>{{ message }}</p>
+                </div>
+            {% endfor %}
+
+            {% if reservationsByAnnonce is empty %}
+                <div class="bg-gray-50 rounded-xl p-8 text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h3 class="mt-4 text-xl font-medium text-gray-900">Aucune réservation</h3>
+                    <p class="mt-2 text-gray-600">Vous n'avez pas encore de réservations pour vos annonces.</p>
+                </div>
+            {% else %}
+                {% for annonceId, data in reservationsByAnnonce %}
+                    <div class="bg-gray-50 rounded-xl p-6 mb-8">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h2 class="text-xl font-semibold text-gray-800">{{ data.annonce.titre }}</h2>
+                                <p class="text-gray-600">{{ data.annonce.trajet.getDeparturePoint() }} → {{ data.annonce.trajet.getArrivalPoint() }}</p>
+                                <p class="text-sm text-gray-500">{{ data.annonce.departureDate|date('d/m/Y à H:i') }}</p>
                             </div>
-                            
-                            <div class="mt-4 flex items-center">
-                                <div class="flex-shrink-0">
-                                    {% if reservation.passager.imagePath %}
-                                        <img class="h-12 w-12 rounded-full" src="{{ asset(reservation.passager.imagePath) }}" alt="">
-                                    {% else %}
-                                        <div class="h-12 w-12 rounded-full bg-gradient-to-r from-primary to-primary-dark flex items-center justify-center text-white text-lg font-bold">
-                                            {{ reservation.passager.prenom|first }}{{ reservation.passager.nom|first }}
-                                        </div>
-                                    {% endif %}
-                                </div>
-                                <div class="ml-3">
-                                    <p class="text-sm font-medium text-gray-900">{{ reservation.passager.prenom }} {{ reservation.passager.nom }}</p>
-                                    <div class="flex items-center">
-                                        <span class="text-yellow-500">★</span>
-                                        <span class="text-xs text-gray-600 ml-1">{{ reservation.passager.rating ?? 'N/A' }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="mt-4 flex justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-900">Prix total</p>
-                                    <p class="text-lg font-bold text-primary">{{ reservation.trajet.prix * reservation.nombrePassagers }} €</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-sm font-medium text-gray-900">Places</p>
-                                    <p class="text-lg font-bold text-gray-900">{{ reservation.nombrePassagers }}</p>
-                                </div>
-                            </div>
-                            
-                            <div class="mt-4 flex space-x-2">
-                                <form action="{{ path('app_conducteur_reservation_accepter', {id: reservation.id}) }}" method="post" class="flex-1">
-                                    <button type="submit" class="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-300 text-sm font-medium">
-                                        Accepter
-                                    </button>
-                                </form>
-                                <form action="{{ path('app_conducteur_reservation_refuser', {id: reservation.id}) }}" method="post" class="flex-1">
-                                    <button type="submit" class="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-300 text-sm font-medium">
-                                        Refuser
-                                    </button>
-                                </form>
+                            <div class="text-right">
+                                <p class="text-sm text-gray-500">Statut</p>
+                                {% if data.annonce.status == 'ouvert' %}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Ouvert
+                                    </span>
+                                {% elseif data.annonce.status == 'plein' %}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                        Plein
+                                    </span>
+                                {% elseif data.annonce.status == 'termine' %}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                        Terminé
+                                    </span>
+                                {% endif %}
                             </div>
                         </div>
+                        
+                        {% if data.reservations is empty %}
+                            <div class="text-center py-4 text-gray-500">
+                                Aucune réservation pour cette annonce.
+                            </div>
+                        {% else %}
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-100">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Passager</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date de réservation</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        {% for reservation in data.reservations %}
+                                            <tr>
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <div class="flex items-center">
+                                                        <div class="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-bold">
+                                                            P
+                                                        </div>
+                                                        <div class="ml-3">
+                                                            <div class="text-sm font-medium text-gray-900">
+                                                                Passager #{{ reservation.userId }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">
+                                                        {{ reservation.dateReservation|date("d/m/Y") }}
+                                                    </div>
+                                                    <div class="text-xs text-gray-500">
+                                                        {{ reservation.dateReservation|date("H:i") }}
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    {% if reservation.status == 'PENDING' %}
+                                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                            En attente
+                                                        </span>
+                                                    {% elseif reservation.status == 'ACCEPTED' %}
+                                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                            Acceptée
+                                                        </span>
+                                                    {% elseif reservation.status == 'REJECTED' %}
+                                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                            Refusée
+                                                        </span>
+                                                    {% elseif reservation.status == 'CANCELLED_BY_PASSENGER' %}
+                                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                                            Annulée par passager
+                                                        </span>
+                                                    {% elseif reservation.status == 'COMPLETED' %}
+                                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                            Terminée
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                                            {{ reservation.status }}
+                                                        </span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                    {% if reservation.status == 'PENDING' %}
+                                                        <div class="flex space-x-2">
+                                                            <form action="{{ path('app_conducteur_accepter_reservation', {'id': reservation.id}) }}" method="POST" class="inline">
+                                                                <button type="submit" class="text-green-500 hover:text-green-700"
+                                                                        onclick="return confirm('Êtes-vous sûr de vouloir accepter cette réservation?')">
+                                                                    <i class="fas fa-check-circle mr-1"></i> Accepter
+                                                                </button>
+                                                            </form>
+                                                            <form action="{{ path('app_conducteur_refuser_reservation', {'id': reservation.id}) }}" method="POST" class="inline">
+                                                                <button type="submit" class="text-red-500 hover:text-red-700"
+                                                                        onclick="return confirm('Êtes-vous sûr de vouloir refuser cette réservation?')">
+                                                                    <i class="fas fa-times-circle mr-1"></i> Refuser
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    {% else %}
+                                                        <span class="text-gray-400">Aucune action disponible</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% if reservation.comment %}
+                                                <tr class="bg-gray-50">
+                                                    <td colspan="4" class="px-6 py-2 text-xs text-gray-600">
+                                                        <div class="flex items-start">
+                                                            <i class="fas fa-comment-alt mt-1 mr-2"></i>
+                                                            <div>
+                                                                <span class="font-semibold">Commentaire:</span> {{ reservation.comment }}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% endif %}
                     </div>
                 {% endfor %}
-            </div>
-        {% else %}
-            <div class="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm p-6 text-center border border-gray-100">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <h3 class="text-lg font-medium text-gray-900">Aucune réservation en attente</h3>
-                <p class="mt-2 text-gray-600">Vous n'avez pas de demandes de réservation en attente pour le moment.</p>
-            </div>
-        {% endif %}
-    </div>
-    
-    <div class="mt-8 glass-card bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-xl p-8">
-        <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Réservations confirmées
-        </h2>
-        
-        {% if reservationsConfirmees is defined and reservationsConfirmees|length > 0 %}
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {% for reservation in reservationsConfirmees %}
-                    <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
-                        <div class="p-4">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h3 class="font-bold text-lg text-gray-900">{{ reservation.trajet.departVille }} → {{ reservation.trajet.arriveeVille }}</h3>
-                                    <p class="text-gray-600">{{ reservation.trajet.dateDepart|date('d M Y') }} à {{ reservation.trajet.heureDepart|date('H:i') }}</p>
-                                </div>
-                                <span class="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">Confirmée</span>
-                            </div>
-                            
-                            <div class="mt-4 flex items-center">
-                                <div class="flex-shrink-0">
-                                    {% if reservation.passager.imagePath %}
-                                        <img class="h-12 w-12 rounded-full" src="{{ asset(reservation.passager.imagePath) }}" alt="">
-                                    {% else %}
-                                        <div class="h-12 w-12 rounded-full bg-gradient-to-r from-primary to-primary-dark flex items-center justify-center text-white text-lg font-bold">
-                                            {{ reservation.passager.prenom|first }}{{ reservation.passager.nom|first }}
-                                        </div>
-                                    {% endif %}
-                                </div>
-                                <div class="ml-3">
-                                    <p class="text-sm font-medium text-gray-900">{{ reservation.passager.prenom }} {{ reservation.passager.nom }}</p>
-                                    <div class="flex items-center">
-                                        <span class="text-yellow-500">★</span>
-                                        <span class="text-xs text-gray-600 ml-1">{{ reservation.passager.rating ?? 'N/A' }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="mt-4 flex justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-900">Prix total</p>
-                                    <p class="text-lg font-bold text-primary">{{ reservation.trajet.prix * reservation.nombrePassagers }} €</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-sm font-medium text-gray-900">Places</p>
-                                    <p class="text-lg font-bold text-gray-900">{{ reservation.nombrePassagers }}</p>
-                                </div>
-                            </div>
-                            
-                            <div class="mt-4">
-                                <a href="{{ path('app_reservation_detail', {id: reservation.id}) }}" class="block w-full text-center px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors duration-300 text-sm font-medium">
-                                    Voir détails
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm p-6 text-center border border-gray-100">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <h3 class="text-lg font-medium text-gray-900">Aucune réservation confirmée</h3>
-                <p class="mt-2 text-gray-600">Vous n'avez pas encore de réservations confirmées pour vos trajets.</p>
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
 {% endblock %} 

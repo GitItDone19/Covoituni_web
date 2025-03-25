@@ -1,8 +1,3 @@
 body {
     background-color: skyblue;
 }
-
-/* Supprimer les astérisques sur les champs obligatoires */
-.form-group label.required:after {
-    content: "";
-}

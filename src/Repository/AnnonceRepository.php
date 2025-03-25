@@ -28,7 +28,7 @@ class AnnonceRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('a')
             ->andWhere('a.status = :status')
-            ->setParameter('status', 'OPEN')
+            ->setParameter('status', 'ouvert')
             ->orderBy('a.date_publication', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
@@ -41,9 +41,26 @@ class AnnonceRepository extends ServiceEntityRepository
     public function findByDriver(int $driverId): array
     {
         return $this->createQueryBuilder('a')
-            ->andWhere('a.driver_id = :driverId')
-            ->setParameter('driverId', $driverId)
-            ->orderBy('a.date_publication', 'DESC')
+            ->join('a.trajet', 't')
+            ->where('a.driver_id = :user')
+            ->setParameter('user', $driverId)
+            ->orderBy('a.departureDate', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+    
+    /**
+     * @return Annonce[] Returns an array of active Annonce objects
+     */
+    public function findActiveAnnouncements(): array
+    {
+        return $this->createQueryBuilder('a')
+            ->join('a.trajet', 't')
+            ->andWhere('a.status = :status')
+            ->andWhere('a.departureDate > :now')
+            ->setParameter('status', 'ouvert')
+            ->setParameter('now', new \DateTime())
+            ->orderBy('a.departureDate', 'ASC')
             ->getQuery()
             ->getResult();
     }

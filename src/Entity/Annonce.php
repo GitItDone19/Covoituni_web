@@ -22,6 +22,9 @@ class Annonce
     #[ORM\Column(type: Types::TEXT)]
     private ?string $description = null;
 
+    #[ORM\Column(name: 'departure_date', type: Types::DATETIME_MUTABLE)]
+    private ?\DateTimeInterface $departureDate = null;
+
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $date_publication = null;
 
@@ -32,7 +35,7 @@ class Annonce
     private ?int $car_id = null;
 
     #[ORM\Column(length: 10)]
-    private ?string $status = 'OPEN';
+    private ?string $status = 'ouvert';
 
     #[ORM\ManyToOne(inversedBy: 'annonces')]
     private ?Trajet $trajet = null;
@@ -80,6 +83,18 @@ class Annonce
     public function setDescription(string $description): static
     {
         $this->description = $description;
+
+        return $this;
+    }
+
+    public function getDepartureDate(): ?\DateTimeInterface
+    {
+        return $this->departureDate;
+    }
+
+    public function setDepartureDate(\DateTimeInterface $departureDate): static
+    {
+        $this->departureDate = $departureDate;
 
         return $this;
     }

@@ -38,7 +38,7 @@
                                         </span>
                                         <div>
                                             <p class="text-sm text-gray-500">From</p>
-                                            <p class="font-medium">{{ ride.trajet.departurePoint }}</p>
+                                            <p class="font-medium">{{ ride.trajet.getDeparturePoint() }}</p>
                                         </div>
                                     </div>
                                     <div class="flex items-center">
@@ -61,7 +61,7 @@
                                         </span>
                                         <div>
                                             <p class="text-sm text-gray-500">Date & Time</p>
-                                            <p class="font-medium">{{ ride.trajet.departureDate|date('d M Y H:i') }}</p>
+                                            <p class="font-medium">{{ ride.departureDate|date('d M Y H:i') }}</p>
                                         </div>
                                     </div>
                                 </div>
