@@ -10,6 +10,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Doctrine\ORM\EntityManagerInterface;
 
 #[Route('/reclamation')]
 class ReclamationController extends AbstractController
@@ -28,7 +29,21 @@ class ReclamationController extends AbstractController
         $reclamations = $this->doctrine->getRepository(Reclamation::class)->findBy(['user' => $user]);
         
         return $this->render('passager/reclamation/index.html.twig', [
-            'reclamations' => $reclamations,
+            'reclamations' => $reclamations
+        ]);
+    }
+
+    #[Route('/{id}', name: 'app_passager_reclamation_show', methods: ['GET'])]
+    public function show(Reclamation $reclamation): Response
+    {
+        // Vérifier que l'utilisateur est bien le propriétaire de la réclamation
+        if ($reclamation->getUser() !== $this->getUser()) {
+            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à voir cette réclamation');
+        }
+        
+        return $this->render('passager/reclamation/show.html.twig', [
+            'reclamation' => $reclamation,
+            'edit_url' => $this->generateUrl('app_passager_reclamation_edit', ['id' => $reclamation->getId()]),
         ]);
     }
 
@@ -54,19 +69,6 @@ class ReclamationController extends AbstractController
 
         return $this->render('passager/reclamation/new.html.twig', [
             'form' => $form->createView(),
-        ]);
-    }
-
-    #[Route('/{id}', name: 'app_passager_reclamation_show', methods: ['GET'])]
-    public function show(Reclamation $reclamation): Response
-    {
-        // Vérifier que l'utilisateur est bien le propriétaire de la réclamation
-        if ($reclamation->getUser() !== $this->getUser()) {
-            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à voir cette réclamation');
-        }
-        
-        return $this->render('passager/reclamation/show.html.twig', [
-            'reclamation' => $reclamation,
         ]);
     }
 

@@ -23,9 +23,23 @@ class ReclamationResponseType extends AbstractType
         // Vérifier si l'utilisateur est un admin
         $isAdmin = $this->security->isGranted('ROLE_ADMIN');
         
-        // Si c'est un admin, il peut uniquement modifier la réponse
+        // Si c'est un admin, il peut modifier la réponse et le statut
         if ($isAdmin) {
+            // Add the status field that's referenced in the template
             $builder
+                ->add('status', \Symfony\Component\Form\Extension\Core\Type\ChoiceType::class, [
+                    'required' => true,
+                    'choices' => [
+                        'En attente' => 'pending',
+                        'En cours de traitement' => 'processing',
+                        'Résolu' => 'resolved',
+                        'Rejeté' => 'rejected'
+                    ],
+                    'label' => 'Statut',
+                    'attr' => [
+                        'class' => 'form-select'
+                    ]
+                ])
                 ->add('reply', TextareaType::class, [
                     'required' => false,
                     'label' => false,
@@ -56,6 +70,9 @@ class ReclamationResponseType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Reclamation::class,
+            'admin_response_only' => false,
         ]);
+        
+        $resolver->setAllowedTypes('admin_response_only', 'bool');
     }
 } 
