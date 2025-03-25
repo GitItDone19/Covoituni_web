@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nouvelle Réclamation{% endblock %}
+
+{% block body %}
+    <div class="container py-5">
+        <h1 class="mb-4">Soumettre une nouvelle réclamation</h1>
+        
+        <div class="card shadow-sm">
+            <div class="card-body">
+                {{ form_start(form, {'attr': {'class': 'needs-validation'}}) }}
+                    <div class="mb-3">
+                        {{ form_label(form.subject) }}
+                        {{ form_widget(form.subject, {'attr': {'class': 'form-control'}}) }}
+                        {{ form_errors(form.subject) }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form_label(form.description) }}
+                        {{ form_widget(form.description, {'attr': {'class': 'form-control'}}) }}
+                        {{ form_errors(form.description) }}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ path('app_passager_reclamation_index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i> Retour
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i> Soumettre
+                        </button>
+                    </div>
+                {{ form_end(form) }}
+            </div>
+        </div>
+    </div>
+{% endblock %} 
