@@ -1,11 +1,21 @@
 {% extends 'layouts/user_layout.html.twig' %}
 
-{% block title %}Passenger Reclamation{% endblock %}
+{% block title %}Faire une réclamation{% endblock %}
 
 {% block content %}
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800">Faire une réclamation</h1>
-        <p class="text-gray-600">Signalez un problème ou faites une demande à l'administration</p>
+    <div class="mb-8 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Faire une réclamation</h1>
+            <p class="text-gray-600">Signalez un problème ou faites une demande à l'administration</p>
+        </div>
+        
+        <a href="{{ path('app_passager_reclamation_index') }}" 
+           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl shadow-md inline-flex items-center transition-colors duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
+            </svg>
+            Voir mes réclamations
+        </a>
     </div>
     
     <div class="glass-card bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-xl p-8">
