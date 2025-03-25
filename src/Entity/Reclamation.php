@@ -38,7 +38,7 @@ class Reclamation
     #[Assert\NotNull(message: "User must be specified")]
     private ?Utilisateur $user = null;
 
-    #[ORM\Column(length: 20, name: "state", options: ["default" => "pending"])]
+    #[ORM\Column(length: 20, options: ["default" => "pending"])]
     #[Assert\NotBlank]
     #[Assert\Choice(
         choices: ['pending', 'in_progress', 'resolved', 'rejected'],
@@ -46,7 +46,7 @@ class Reclamation
     )]
     private ?string $status = "pending";
 
-    #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $date = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
@@ -55,6 +55,13 @@ class Reclamation
         maxMessage: "Reply cannot be longer than {{ limit }} characters"
     )]
     private ?string $reply = null;
+
+    public function __construct()
+    {
+        // Initialiser la date avec la date actuelle lors de la création
+        $this->date = new \DateTime();
+        $this->status = 'pending';
+    }
 
     public function getId(): ?int
     {
@@ -113,9 +120,15 @@ class Reclamation
         return $this->date;
     }
 
-    public function setDate(\DateTimeInterface $date): static
+    public function setDate(?\DateTimeInterface $date): static
     {
-        $this->date = $date;
+        // Vérifier si la date est valide avant de l'assigner
+        if ($date instanceof \DateTimeInterface) {
+            $this->date = $date;
+        } else {
+            // Utiliser la date actuelle si la date fournie est invalide
+            $this->date = new \DateTime();
+        }
 
         return $this;
     }
