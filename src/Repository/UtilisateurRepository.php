@@ -56,6 +56,45 @@ class UtilisateurRepository extends ServiceEntityRepository implements PasswordU
         $this->save($user, true);
     }
 
+    /**
+     * Trouve tous les conducteurs
+     * 
+     * @return Utilisateur[] Les utilisateurs qui sont des conducteurs
+     */
+    public function findConducteurs(): array
+    {
+        try {
+            return $this->createQueryBuilder('u')
+                ->join('u.role', 'r')
+                ->where('r.code = :role')
+                ->setParameter('role', 'CONDUCTEUR')
+                ->orderBy('u.nom', 'ASC')
+                ->getQuery()
+                ->getResult();
+        } catch (\Exception $e) {
+            // En cas d'erreur, retourner un tableau vide
+            return [];
+        }
+    }
+
+    /**
+     * Trouve les utilisateurs par type (conducteur)
+     * 
+     * @param string $type Le type d'utilisateur à rechercher (conducteur)
+     * @return Utilisateur[] Les utilisateurs du type spécifié
+     */
+    public function findByRoles(array $roles): array
+    {
+        // Puisque l'entité Utilisateur n'a pas de champ 'roles', 
+        // nous allons chercher les conducteurs par leur type
+        return $this->createQueryBuilder('u')
+            ->where('u.type = :type')
+            ->setParameter('type', 'conducteur')
+            ->orderBy('u.nom', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
 //    /**
 //     * @return Utilisateur[] Returns an array of Utilisateur objects
 //     */
