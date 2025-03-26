@@ -17,6 +17,7 @@ use App\Repository\TrajetRepository;
 use App\Repository\AnnonceRepository;
 use App\Entity\Annonce;
 use App\Entity\Reservation;
+use App\Entity\Reclamation;
 
 #[Route('/passager')]
 class PassagerController extends AbstractController
@@ -58,6 +59,36 @@ class PassagerController extends AbstractController
         return $this->render('passager/reclamation.html.twig', [
             'user' => $user
         ]);
+    }
+    
+    #[Route('/reclamation/submit', name: 'app_passager_reclamation_submit', methods: ['POST'])]
+    public function submitReclamation(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        $this->denyAccessUnlessGranted('ROLE_PASSAGER');
+        
+        $subject = $request->request->get('subject');
+        $description = $request->request->get('description');
+        
+        // Validation
+        if (!$subject || !$description) {
+            $this->addFlash('error', 'Tous les champs sont obligatoires');
+            return $this->redirectToRoute('app_passager_reclamation');
+        }
+        
+        // Créer une nouvelle réclamation
+        $reclamation = new Reclamation();
+        $reclamation->setUser($this->getUser());
+        $reclamation->setSubject($subject);
+        $reclamation->setDescription($description);
+        $reclamation->setDate(new \DateTime());
+        $reclamation->setState('pending');
+        
+        $entityManager->persist($reclamation);
+        $entityManager->flush();
+        
+        $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
+        // Redirect to the reclamation list page after successful submission
+        return $this->redirectToRoute('app_passager_reclamation');
     }
     
     #[Route('/avis', name: 'app_passager_avis')]

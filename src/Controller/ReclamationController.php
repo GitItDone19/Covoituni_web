@@ -57,7 +57,7 @@ class ReclamationController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $reclamation->setUser($this->getUser());
             $reclamation->setDate(new \DateTime());
-            $reclamation->setStatus('pending');
+            $reclamation->setState('pending');
             
             $entityManager = $this->doctrine->getManager();
             $entityManager->persist($reclamation);
@@ -81,7 +81,7 @@ class ReclamationController extends AbstractController
         }
         
         // Vérifier que la réclamation est toujours en attente
-        if ($reclamation->getStatus() !== 'pending') {
+        if ($reclamation->getState() !== 'pending') {
             $this->addFlash('error', 'Vous ne pouvez pas modifier une réclamation qui a déjà été traitée');
             return $this->redirectToRoute('app_passager_reclamation_show', ['id' => $reclamation->getId()]);
         }
@@ -107,7 +107,7 @@ class ReclamationController extends AbstractController
     {
         // Seul le propriétaire peut supprimer une réclamation en état "pending"
         if (!$this->isGranted('ROLE_ADMIN') && 
-            ($reclamation->getUser() !== $this->getUser() || $reclamation->getStatus() !== 'pending')) {
+            ($reclamation->getUser() !== $this->getUser() || $reclamation->getState() !== 'pending')) {
             throw new AccessDeniedException('You cannot delete this reclamation');
         }
         

@@ -15,7 +15,7 @@
                     Retour à la liste
                 </a>
                 
-                {% if reclamation.status == 'pending' %}
+                {% if reclamation.state == 'pending' %}
                     <a href="{{ path('app_passager_reclamation_edit', {'id': reclamation.id}) }}" 
                        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors duration-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -31,21 +31,21 @@
         
         <div class="mt-4">
             <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                {% if reclamation.status == 'pending' %}
+                {% if reclamation.state == 'pending' %}
                     bg-yellow-100 text-yellow-800
-                {% elseif reclamation.status == 'in_progress' %}
+                {% elseif reclamation.state == 'in_progress' %}
                     bg-blue-100 text-blue-800
-                {% elseif reclamation.status == 'resolved' %}
+                {% elseif reclamation.state == 'resolved' %}
                     bg-green-100 text-green-800
                 {% else %}
                     bg-red-100 text-red-800
                 {% endif %}
             ">
-                {% if reclamation.status == 'pending' %}
+                {% if reclamation.state == 'pending' %}
                     En attente
-                {% elseif reclamation.status == 'in_progress' %}
+                {% elseif reclamation.state == 'in_progress' %}
                     En cours
-                {% elseif reclamation.status == 'resolved' %}
+                {% elseif reclamation.state == 'resolved' %}
                     Résolu
                 {% else %}
                     Rejeté

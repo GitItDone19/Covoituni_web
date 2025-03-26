@@ -44,6 +44,7 @@ class Reclamation
         choices: ['pending', 'in_progress', 'resolved', 'rejected'],
         message: "Choose a valid status: pending, in_progress, resolved, or rejected"
     )]
+    // Note: All methods (getStatus/setStatus and getState/setState) use this property
     private ?string $status = "pending";
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
