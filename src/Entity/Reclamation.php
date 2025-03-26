@@ -38,13 +38,13 @@ class Reclamation
     #[Assert\NotNull(message: "User must be specified")]
     private ?Utilisateur $user = null;
 
-    #[ORM\Column(length: 20)]
+    #[ORM\Column(length: 20, name: "state", options: ["default" => "pending"])]
     #[Assert\NotBlank]
     #[Assert\Choice(
         choices: ['pending', 'in_progress', 'resolved', 'rejected'],
         message: "Choose a valid status: pending, in_progress, resolved, or rejected"
     )]
-    private ?string $state = 'pending';
+    private ?string $status = "pending";
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTimeInterface $date = null;
@@ -97,15 +97,14 @@ class Reclamation
         return $this;
     }
 
-    public function getState(): ?string
+    public function getStatus(): ?string
     {
-        return $this->state;
+        return $this->status;
     }
 
-    public function setState(string $state): static
+    public function setStatus(string $status): static
     {
-        $this->state = $state;
-
+        $this->status = $status;
         return $this;
     }
 
@@ -130,6 +129,17 @@ class Reclamation
     {
         $this->reply = $reply;
 
+        return $this;
+    }
+
+    public function getState(): ?string
+    {
+        return $this->status;
+    }
+
+    public function setState(string $state): self
+    {
+        $this->status = $state;
         return $this;
     }
 }
