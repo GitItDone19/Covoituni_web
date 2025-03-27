@@ -540,4 +540,30 @@ class UserService
 
         return true;
     }
+
+    /**
+     * Find users by role
+     *
+     * @param string $roleCode
+     * @param int $page
+     * @param int $limit
+     * @return array
+     */
+    public function findUsersByRole(string $roleCode, int $page = 1, int $limit = 10): array
+    {
+        $offset = ($page - 1) * $limit;
+        
+        // Find users with the specified role code
+        $users = $this->userRepository->findBy(['roleCode' => $roleCode], ['createdAt' => 'DESC'], $limit, $offset);
+        
+        // Count total users with this role
+        $totalUsers = $this->userRepository->count(['roleCode' => $roleCode]);
+        
+        return [
+            'users' => $users,
+            'totalUsers' => $totalUsers,
+            'page' => $page,
+            'limit' => $limit
+        ];
+    }
 } 

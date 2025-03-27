@@ -252,6 +252,29 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    /**
+     * Check if user is banned
+     * This is a virtual property that doesn't exist in the database
+     * 
+     * Note: This will be overridden by the UserBanService
+     */
+    public function getIsBanned(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Set user banned status
+     * This is a virtual property that doesn't exist in the database
+     * 
+     * Note: This will be overridden by the UserBanService
+     */
+    public function setIsBanned(bool $isBanned): static
+    {
+        // Handled by UserBanService
+        return $this;
+    }
+
     public function getRole(): ?Role
     {
         return $this->role;

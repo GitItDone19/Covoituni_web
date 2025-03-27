@@ -12,59 +12,107 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
 // Ne pas mettre de name ici pour éviter les conflits
-#[Route('/admin/reclamations')]
+#[Route('/admin/reclamation')]
 class ReclamationController extends AbstractController
 {
-    // Utiliser le nom de route exact défini dans admin.yaml
-    #[Route('/', name: 'admin_reclamation', methods: ['GET'])]
+    #[Route('/', name: 'app_admin_reclamation_index', methods: ['GET'])]
     public function index(Request $request, ReclamationRepository $reclamationRepository): Response
     {
+        // Make sure only users with ROLE_ADMIN can access this page
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        
         $filter = $request->query->get('filter');
         
-        $reclamations = match($filter) {
-            'pending' => $reclamationRepository->findBy(['status' => 'pending']),
-            'in_progress' => $reclamationRepository->findBy(['status' => 'in_progress']),
-            'resolved' => $reclamationRepository->findBy(['status' => 'resolved']),
-            'rejected' => $reclamationRepository->findBy(['status' => 'rejected']),
-            default => $reclamationRepository->findAll(),
-        };
+        // Filter reclamations based on the filter parameter
+        if ($filter && in_array($filter, ['pending', 'in_progress', 'resolved', 'rejected'])) {
+            $reclamations = $reclamationRepository->findBy(['status' => $filter], ['date' => 'DESC']);
+        } else {
+            // Get all reclamations, ordered by date (newest first)
+            $reclamations = $reclamationRepository->findBy([], ['date' => 'DESC']);
+        }
         
         return $this->render('admin/reclamation/index.html.twig', [
             'reclamations' => $reclamations,
-            'current_filter' => $filter
+            'user' => $this->getUser(),
         ]);
     }
-
-    #[Route('/{id}', name: 'admin_reclamations_show', methods: ['GET', 'POST'])]
-    public function show(Request $request, Reclamation $reclamation, EntityManagerInterface $entityManager): Response
+    
+    #[Route('/{id}', name: 'app_admin_reclamation_show', methods: ['GET'])]
+    public function show(Reclamation $reclamation): Response
     {
-        $form = $this->createForm(ReclamationResponseType::class, $reclamation, [
-            'admin_response_only' => true
-        ]);
-        $form->handleRequest($request);
-
-        if ($form->isSubmitted() && $form->isValid()) {
-            $entityManager->flush();
-            $this->addFlash('success', 'La réclamation a été mise à jour avec succès');
-            return $this->redirectToRoute('admin_reclamation');
-        }
-
+        // Make sure only users with ROLE_ADMIN can access this page
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        
         return $this->render('admin/reclamation/show.html.twig', [
             'reclamation' => $reclamation,
-            'form' => $form->createView(),
+            'user' => $this->getUser(),
         ]);
     }
-
-    #[Route('/{id}/resolve', name: 'admin_reclamations_resolve', methods: ['POST'])]
-    public function resolve(Request $request, Reclamation $reclamation, EntityManagerInterface $entityManager): Response
+    
+    #[Route('/{id}/reply', name: 'app_admin_reclamation_reply', methods: ['GET', 'POST'])]
+    public function reply(Request $request, Reclamation $reclamation, EntityManagerInterface $entityManager): Response
     {
-        if ($this->isCsrfTokenValid('resolve'.$reclamation->getId(), $request->request->get('_token'))) {
-            $reclamation->setStatus('resolved');
+        // Make sure only users with ROLE_ADMIN can access this page
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        
+        if ($request->isMethod('POST')) {
+            $replyContent = $request->request->get('reply');
+            $newStatus = $request->request->get('status');
+            
+            if (empty($replyContent)) {
+                $this->addFlash('error', 'La réponse ne peut pas être vide');
+                return $this->redirectToRoute('app_admin_reclamation_reply', ['id' => $reclamation->getId()]);
+            }
+            
+            // Update the reclamation
+            $reclamation->setReply($replyContent);
+            $reclamation->setState($newStatus);
+            
             $entityManager->flush();
-            $this->addFlash('success', 'La réclamation a été marquée comme résolue');
+            
+            $this->addFlash('success', 'Votre réponse a été enregistrée avec succès');
+            return $this->redirectToRoute('app_admin_reclamation_show', ['id' => $reclamation->getId()]);
         }
-
-        return $this->redirectToRoute('admin_reclamation');
+        
+        return $this->render('admin/reclamation/reply.html.twig', [
+            'reclamation' => $reclamation,
+            'user' => $this->getUser(),
+        ]);
+    }
+    
+    #[Route('/{id}/delete', name: 'app_admin_reclamation_delete', methods: ['POST'])]
+    public function delete(Request $request, Reclamation $reclamation, EntityManagerInterface $entityManager): Response
+    {
+        // Make sure only users with ROLE_ADMIN can access this page
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        
+        if ($this->isCsrfTokenValid('delete'.$reclamation->getId(), $request->request->get('_token'))) {
+            $entityManager->remove($reclamation);
+            $entityManager->flush();
+            
+            $this->addFlash('success', 'La réclamation a été supprimée avec succès');
+        }
+        
+        return $this->redirectToRoute('app_admin_reclamation_index');
+    }
+    
+    #[Route('/{id}/change-status', name: 'app_admin_reclamation_change_status', methods: ['POST'])]
+    public function changeStatus(Request $request, Reclamation $reclamation, EntityManagerInterface $entityManager): Response
+    {
+        // Make sure only users with ROLE_ADMIN can access this page
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        
+        $newStatus = $request->request->get('status');
+        if (!in_array($newStatus, ['pending', 'in_progress', 'resolved', 'rejected'])) {
+            $this->addFlash('error', 'Statut invalide');
+            return $this->redirectToRoute('app_admin_reclamation_show', ['id' => $reclamation->getId()]);
+        }
+        
+        $reclamation->setState($newStatus);
+        $entityManager->flush();
+        
+        $this->addFlash('success', 'Le statut de la réclamation a été modifié avec succès');
+        return $this->redirectToRoute('app_admin_reclamation_show', ['id' => $reclamation->getId()]);
     }
 
     /**

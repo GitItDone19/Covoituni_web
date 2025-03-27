@@ -62,4 +62,73 @@ class ReservationRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+    
+    /**
+     * Count reservations by status
+     * 
+     * @param string $status The status to count
+     * @return int The number of reservations with the given status
+     */
+    public function countByStatus(string $status): int
+    {
+        try {
+            return $this->createQueryBuilder('r')
+                ->select('COUNT(r.id)')
+                ->where('r.status = :status')
+                ->setParameter('status', $status)
+                ->getQuery()
+                ->getSingleScalarResult();
+        } catch (\Exception $e) {
+            return 0;
+        }
+    }
+    
+    /**
+     * Find reservations for the current day
+     * 
+     * @return Reservation[] Today's reservations
+     */
+    public function findToday(): array
+    {
+        $today = new \DateTime('today');
+        $tomorrow = new \DateTime('tomorrow');
+        
+        try {
+            return $this->createQueryBuilder('r')
+                ->where('r.dateReservation >= :today')
+                ->andWhere('r.dateReservation < :tomorrow')
+                ->setParameter('today', $today)
+                ->setParameter('tomorrow', $tomorrow)
+                ->getQuery()
+                ->getResult();
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+    
+    /**
+     * Count today's confirmed reservations
+     * 
+     * @return int The number of confirmed reservations for today
+     */
+    public function countTodayConfirmed(): int
+    {
+        $today = new \DateTime('today');
+        $tomorrow = new \DateTime('tomorrow');
+        
+        try {
+            return $this->createQueryBuilder('r')
+                ->select('COUNT(r.id)')
+                ->where('r.dateReservation >= :today')
+                ->andWhere('r.dateReservation < :tomorrow')
+                ->andWhere('r.status = :status')
+                ->setParameter('today', $today)
+                ->setParameter('tomorrow', $tomorrow)
+                ->setParameter('status', 'confirmed')
+                ->getQuery()
+                ->getSingleScalarResult();
+        } catch (\Exception $e) {
+            return 0;
+        }
+    }
 } 

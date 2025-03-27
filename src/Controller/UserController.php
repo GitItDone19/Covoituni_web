@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Service\UserService;
+use App\Service\UserBanService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,10 +15,12 @@ use Doctrine\ORM\EntityManagerInterface;
 class UserController extends AbstractController
 {
     private $userService;
+    private $userBanService;
 
-    public function __construct(UserService $userService)
+    public function __construct(UserService $userService, UserBanService $userBanService)
     {
         $this->userService = $userService;
+        $this->userBanService = $userBanService;
     }
 
     #[Route('/profile/edit', name: 'app_user_edit_profile')]
@@ -115,19 +118,42 @@ class UserController extends AbstractController
         $page = max(1, $request->query->getInt('page', 1));
         $limit = $request->query->getInt('limit', 10);
         $searchTerm = $request->query->get('search', '');
+        $filter = $request->query->get('filter', '');
 
-        if (!empty($searchTerm)) {
+        $result = [];
+        
+        // Handle filtering by role
+        if (!empty($filter)) {
+            $roleCode = strtoupper($filter);
+            if (in_array($roleCode, ['ADMIN', 'CONDUCTEUR', 'PASSAGER'])) {
+                $result = $this->userService->findUsersByRole($roleCode, $page, $limit);
+            }
+        } 
+        // Handle search
+        else if (!empty($searchTerm)) {
             $result = $this->userService->searchUsers($searchTerm, $page, $limit);
-        } else {
+        } 
+        // Default list
+        else {
             $result = $this->userService->listUsers($page, $limit);
+        }
+        
+        // Check ban status for each user
+        $users = $result['users'];
+        $bannedStatuses = [];
+        
+        foreach ($users as $user) {
+            $bannedStatuses[$user->getId()] = $this->userBanService->isUserBanned($user);
         }
 
         return $this->render('user/list.html.twig', [
-            'users' => $result['users'],
+            'users' => $users,
             'totalUsers' => $result['totalUsers'],
             'page' => $page,
             'limit' => $limit,
             'totalPages' => ceil($result['totalUsers'] / $limit),
+            'bannedStatuses' => $bannedStatuses,
+            'user' => $this->getUser()
         ]);
     }
 
@@ -202,6 +228,46 @@ class UserController extends AbstractController
         
         return $this->render('user/edit_roles.html.twig', [
             'user' => $user,
+        ]);
+    }
+
+    #[Route('/admin/users/{id}/ban', name: 'app_admin_user_ban', methods: ['POST'])]
+    public function banUser(int $id, Request $request): Response
+    {
+        // Check if the user has admin rights
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        // CSRF token validation
+        if (!$this->isCsrfTokenValid('ban-user-'.$id, $request->request->get('_token'))) {
+            throw new AccessDeniedException('Invalid CSRF token');
+        }
+
+        $user = $this->userService->findUserById($id);
+        
+        if (!$user) {
+            $this->addFlash('error', 'Utilisateur non trouvé');
+            return $this->redirectToRoute('app_admin_users');
+        }
+        
+        // Don't allow banning administrators if not super admin
+        if ($user->getRoleCode() === 'ADMIN' && !$this->isGranted('ROLE_SUPER_ADMIN')) {
+            $this->addFlash('error', 'Vous ne pouvez pas bannir un administrateur');
+            return $this->redirectToRoute('app_admin_users');
+        }
+        
+        // Toggle ban status using the service
+        $isBanned = $this->userBanService->toggleBanStatus($user);
+        
+        if (!$isBanned) {
+            $this->addFlash('success', 'L\'utilisateur a été débloqué avec succès');
+        } else {
+            $this->addFlash('success', 'L\'utilisateur a été banni avec succès');
+        }
+        
+        return $this->redirectToRoute('app_admin_users', [
+            'filter' => $request->query->get('filter'),
+            'search' => $request->query->get('search'),
+            'page' => $request->query->get('page', 1)
         ]);
     }
 } 

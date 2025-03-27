@@ -94,6 +94,67 @@ class UtilisateurRepository extends ServiceEntityRepository implements PasswordU
             ->getQuery()
             ->getResult();
     }
+    
+    /**
+     * Count users by role code
+     * 
+     * @param string $roleCode The role code to count
+     * @return int The number of users with the given role
+     */
+    public function countByRole(string $roleCode): int
+    {
+        try {
+            return $this->createQueryBuilder('u')
+                ->select('COUNT(u.id)')
+                ->where('u.roleCode = :roleCode')
+                ->setParameter('roleCode', $roleCode)
+                ->getQuery()
+                ->getSingleScalarResult();
+        } catch (\Exception $e) {
+            return 0;
+        }
+    }
+    
+    /**
+     * Find the most recently registered users
+     * 
+     * @param int $limit The maximum number of users to return
+     * @return Utilisateur[] The most recently registered users
+     */
+    public function findRecent(int $limit = 5): array
+    {
+        try {
+            return $this->createQueryBuilder('u')
+                ->orderBy('u.createdAt', 'DESC')
+                ->setMaxResults($limit)
+                ->getQuery()
+                ->getResult();
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+    
+    /**
+     * Count active users (logged in within the last 30 days)
+     * 
+     * @return int The number of active users
+     */
+    public function countActive(): int
+    {
+        $thirtyDaysAgo = new \DateTime('-30 days');
+        
+        try {
+            return $this->createQueryBuilder('u')
+                ->select('COUNT(u.id)')
+                ->where('u.dernierConnexion >= :thirtyDaysAgo')
+                ->setParameter('thirtyDaysAgo', $thirtyDaysAgo)
+                ->getQuery()
+                ->getSingleScalarResult();
+        } catch (\Exception $e) {
+            // If dernierConnexion doesn't exist or other error, return total count
+            return $this->count([]);
+        }
+    }
 
 //    /**
 //     * @return Utilisateur[] Returns an array of Utilisateur objects

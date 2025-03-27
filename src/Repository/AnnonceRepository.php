@@ -64,4 +64,67 @@ class AnnonceRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Find the most recent announcements
+     * 
+     * @param int $limit The maximum number of announcements to return
+     * @return Annonce[] The most recent announcements
+     */
+    public function findRecent(int $limit = 5): array
+    {
+        try {
+            return $this->createQueryBuilder('a')
+                ->orderBy('a.date_publication', 'DESC')
+                ->setMaxResults($limit)
+                ->getQuery()
+                ->getResult();
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Count announcements by status
+     * 
+     * @param string $status The status to count
+     * @return int The number of announcements with the given status
+     */
+    public function countByStatus(string $status): int
+    {
+        try {
+            return $this->createQueryBuilder('a')
+                ->select('COUNT(a.id)')
+                ->where('a.status = :status')
+                ->setParameter('status', $status)
+                ->getQuery()
+                ->getSingleScalarResult();
+        } catch (\Exception $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Count announcements created today
+     * 
+     * @return int The number of announcements created today
+     */
+    public function countCreatedToday(): int
+    {
+        $today = new \DateTime('today');
+        $tomorrow = new \DateTime('tomorrow');
+        
+        try {
+            return $this->createQueryBuilder('a')
+                ->select('COUNT(a.id)')
+                ->where('a.date_publication >= :today')
+                ->andWhere('a.date_publication < :tomorrow')
+                ->setParameter('today', $today)
+                ->setParameter('tomorrow', $tomorrow)
+                ->getQuery()
+                ->getSingleScalarResult();
+        } catch (\Exception $e) {
+            return 0;
+        }
+    }
 } 

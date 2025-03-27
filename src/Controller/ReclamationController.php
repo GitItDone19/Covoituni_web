@@ -29,7 +29,8 @@ class ReclamationController extends AbstractController
         $reclamations = $this->doctrine->getRepository(Reclamation::class)->findBy(['user' => $user]);
         
         return $this->render('passager/reclamation/index.html.twig', [
-            'reclamations' => $reclamations
+            'reclamations' => $reclamations,
+            'user' => $user
         ]);
     }
 
@@ -44,6 +45,7 @@ class ReclamationController extends AbstractController
         return $this->render('passager/reclamation/show.html.twig', [
             'reclamation' => $reclamation,
             'edit_url' => $this->generateUrl('app_passager_reclamation_edit', ['id' => $reclamation->getId()]),
+            'user' => $this->getUser()
         ]);
     }
 
@@ -64,11 +66,12 @@ class ReclamationController extends AbstractController
             $entityManager->flush();
 
             $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
-            return $this->redirectToRoute('app_passager_reclamation_index');
+            return $this->redirectToRoute('app_passager_mes_reclamations');
         }
 
         return $this->render('passager/reclamation/new.html.twig', [
             'form' => $form->createView(),
+            'user' => $this->getUser()
         ]);
     }
 
@@ -99,6 +102,7 @@ class ReclamationController extends AbstractController
         return $this->render('passager/reclamation/edit.html.twig', [
             'reclamation' => $reclamation,
             'form' => $form->createView(),
+            'user' => $this->getUser()
         ]);
     }
 
@@ -114,8 +118,10 @@ class ReclamationController extends AbstractController
         if ($this->isCsrfTokenValid('delete'.$reclamation->getId(), $request->request->get('_token'))) {
             $entityManager->remove($reclamation);
             $entityManager->flush();
+            
+            $this->addFlash('success', 'Votre réclamation a été supprimée avec succès');
         }
 
-        return $this->redirectToRoute('app_reclamation_index', [], Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('app_passager_mes_reclamations');
     }
 } 

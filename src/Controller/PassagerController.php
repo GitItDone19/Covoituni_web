@@ -88,7 +88,17 @@ class PassagerController extends AbstractController
         
         $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
         // Redirect to the reclamation list page after successful submission
-        return $this->redirectToRoute('app_passager_reclamation');
+        return $this->redirectToRoute('app_passager_mes_reclamations');
+    }
+    
+    #[Route('/mes-reclamations', name: 'app_passager_mes_reclamations')]
+    public function mesReclamations(): Response
+    {
+        // Make sure only users with ROLE_PASSAGER can access this page
+        $this->denyAccessUnlessGranted('ROLE_PASSAGER');
+        
+        // Redirect to the reclamation index route from ReclamationController
+        return $this->redirectToRoute('app_passager_reclamation_index');
     }
     
     #[Route('/avis', name: 'app_passager_avis')]

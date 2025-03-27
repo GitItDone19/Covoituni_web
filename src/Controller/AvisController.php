@@ -10,6 +10,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Twig\Environment;
 
 class AvisController extends AbstractController
 {
@@ -18,6 +19,7 @@ class AvisController extends AbstractController
     {
         return $this->render('avis/index.html.twig', [
             'avis' => $avisRepository->findAll(),
+            'user' => $this->getUser(),
         ]);
     }
 
@@ -155,6 +157,7 @@ class AvisController extends AbstractController
     {
         return $this->render('avis/show.html.twig', [
             'avi' => $avi,
+            'user' => $this->getUser(),
         ]);
     }
 
@@ -174,6 +177,7 @@ class AvisController extends AbstractController
         return $this->render('avis/edit.html.twig', [
             'avi' => $avi,
             'form' => $form,
+            'user' => $this->getUser(),
         ]);
     }
 
@@ -307,18 +311,21 @@ class AvisController extends AbstractController
 
     #[Route('/passager/avis/list', name: 'app_passager_avis_list')]
     #[Route('/avis/list', name: 'app_avis_list')]
-    public function list(AvisRepository $avisRepository): Response
+    public function list(AvisRepository $avisRepository, Environment $twig): Response
     {
         $avis = $avisRepository->findAll();
+        $user = $this->getUser();
         
         // Let's be flexible with which template we render
-        if ($this->get('twig')->getLoader()->exists('passager/avis/list.html.twig')) {
+        if ($twig->getLoader()->exists('passager/avis/list.html.twig')) {
             return $this->render('passager/avis/list.html.twig', [
                 'avis' => $avis,
+                'user' => $user,
             ]);
         } else {
             return $this->render('avis/list.html.twig', [
                 'avis' => $avis,
+                'user' => $user,
             ]);
         }
     }
@@ -362,8 +369,9 @@ class AvisController extends AbstractController
             }
         }
         
-        $avis->setNote($rating);
+        $avis->setRating((int)$rating);
         $avis->setCommentaire($comment);
+        $avis->setDate(new \DateTime());
         
         $entityManager->persist($avis);
         $entityManager->flush();
