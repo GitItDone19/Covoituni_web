@@ -82,17 +82,42 @@
                                 {% if app.user %}
                                     {% if is_granted('ROLE_ADMIN') %}
                                         <a href="{{ path('app_admin_dashboard') }}" class="nav-link inline-flex items-center px-4 py-2 text-sm font-medium transition-all duration-300">
-                                            <i class="fas fa-user-circle mr-2"></i> Dashboard
+                                            <span class="mr-2">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
+                                                    <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
+                                                </svg>
+                                            </span>
+                                            Dashboard
                                         </a>
                                     {% elseif is_granted('ROLE_CONDUCTEUR') %}
                                         <a href="{{ path('app_conducteur_dashboard') }}" class="nav-link inline-flex items-center px-4 py-2 text-sm font-medium transition-all duration-300">
-                                            <i class="fas fa-user-circle mr-2"></i> Dashboard
+                                            <span class="mr-2">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                                                    <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
+                                                </svg>
+                                            </span>
+                                            Dashboard
                                         </a>
                                     {% elseif is_granted('ROLE_PASSAGER') %}
                                         <a href="{{ path('app_passager_dashboard') }}" class="nav-link inline-flex items-center px-4 py-2 text-sm font-medium transition-all duration-300">
-                                            <i class="fas fa-user-circle mr-2"></i> Dashboard
+                                            <span class="mr-2">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                                                </svg>
+                                            </span>
+                                            Dashboard
                                         </a>
                                     {% endif %}
+                                    <a href="{{ path('app_user_profile') }}" class="nav-link inline-flex items-center px-4 py-2 text-sm font-medium transition-all duration-300">
+                                        <span class="mr-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd" />
+                                            </svg>
+                                        </span>
+                                        Profile
+                                    </a>
                                 {% endif %}
                         </div>
                     </div>

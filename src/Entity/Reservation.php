@@ -36,6 +36,10 @@ class Reservation
     #[ORM\Column(length: 10, options: ['default' => 'TRAJET'])]
     private ?string $type = 'TRAJET';
 
+    #[ORM\ManyToOne(inversedBy: 'reservations')]
+    #[ORM\JoinColumn(name: 'annonce_event_id', referencedColumnName: 'id', nullable: true)]
+    private ?AnnonceEvent $annonceEvent = null;
+
     public function __construct()
     {
         $this->dateReservation = new \DateTime();
@@ -127,6 +131,18 @@ class Reservation
     public function setType(string $type): static
     {
         $this->type = $type;
+
+        return $this;
+    }
+
+    public function getAnnonceEvent(): ?AnnonceEvent
+    {
+        return $this->annonceEvent;
+    }
+
+    public function setAnnonceEvent(?AnnonceEvent $annonceEvent): static
+    {
+        $this->annonceEvent = $annonceEvent;
 
         return $this;
     }

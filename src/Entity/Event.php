@@ -14,10 +14,14 @@ class Event
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(name: 'id_event')]
-    private ?int $id = null;
+    #[ORM\Column(name: 'id_event', type: 'integer')]
+    private ?int $idEvent = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\ManyToOne(inversedBy: 'events')]
+    #[ORM\JoinColumn(name: 'id_type', referencedColumnName: 'id_type', nullable: false)]
+    private ?TypeEvent $typeEvent = null;
+
+    #[ORM\Column(name: 'nom', type: 'string', length: 255)]
     private ?string $nom = null;
 
     #[ORM\Column(name: 'date_event', type: Types::DATE_MUTABLE)]
@@ -26,30 +30,42 @@ class Event
     #[ORM\Column(name: 'heure_event', type: Types::TIME_MUTABLE)]
     private ?\DateTimeInterface $heureEvent = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(name: 'lieu', type: 'string', length: 255)]
     private ?string $lieu = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[ORM\Column(name: 'description', type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
-    #[ORM\ManyToOne(targetEntity: TypeEvent::class, inversedBy: 'events')]
-    #[ORM\JoinColumn(name: 'id_type', referencedColumnName: 'id_type', nullable: false)]
-    private ?TypeEvent $type = null;
-
-    #[ORM\Column(length: 20, options: ['default' => 'ACTIVE'])]
+    #[ORM\Column(name: 'status', type: 'string', length: 20, options: ['default' => 'ACTIVE'])]
     private ?string $status = 'ACTIVE';
 
     #[ORM\OneToMany(mappedBy: 'event', targetEntity: EventParticipation::class, orphanRemoval: true)]
     private Collection $participations;
 
+    #[ORM\OneToMany(mappedBy: 'event', targetEntity: AnnonceEvent::class, orphanRemoval: true)]
+    private Collection $annonceEvents;
+
     public function __construct()
     {
         $this->participations = new ArrayCollection();
+        $this->annonceEvents = new ArrayCollection();
     }
 
-    public function getId(): ?int
+    public function getIdEvent(): ?int
     {
-        return $this->id;
+        return $this->idEvent;
+    }
+
+    public function getTypeEvent(): ?TypeEvent
+    {
+        return $this->typeEvent;
+    }
+
+    public function setTypeEvent(?TypeEvent $typeEvent): static
+    {
+        $this->typeEvent = $typeEvent;
+
+        return $this;
     }
 
     public function getNom(): ?string
@@ -112,18 +128,6 @@ class Event
         return $this;
     }
 
-    public function getType(): ?TypeEvent
-    {
-        return $this->type;
-    }
-
-    public function setType(?TypeEvent $type): static
-    {
-        $this->type = $type;
-
-        return $this;
-    }
-
     public function getStatus(): ?string
     {
         return $this->status;
@@ -160,6 +164,36 @@ class Event
             // set the owning side to null (unless already changed)
             if ($participation->getEvent() === $this) {
                 $participation->setEvent(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AnnonceEvent>
+     */
+    public function getAnnonceEvents(): Collection
+    {
+        return $this->annonceEvents;
+    }
+
+    public function addAnnonceEvent(AnnonceEvent $annonceEvent): static
+    {
+        if (!$this->annonceEvents->contains($annonceEvent)) {
+            $this->annonceEvents->add($annonceEvent);
+            $annonceEvent->setEvent($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAnnonceEvent(AnnonceEvent $annonceEvent): static
+    {
+        if ($this->annonceEvents->removeElement($annonceEvent)) {
+            // set the owning side to null (unless already changed)
+            if ($annonceEvent->getEvent() === $this) {
+                $annonceEvent->setEvent(null);
             }
         }
 

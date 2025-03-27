@@ -13,13 +13,13 @@ class TypeEvent
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(name: 'id_type')]
-    private ?int $id = null;
+    #[ORM\Column(name: 'id_type', type: 'integer')]
+    private ?int $idType = null;
 
-    #[ORM\Column(length: 255, unique: true)]
+    #[ORM\Column(name: 'nom', type: 'string', length: 255, unique: true)]
     private ?string $nom = null;
 
-    #[ORM\OneToMany(mappedBy: 'type', targetEntity: Event::class)]
+    #[ORM\OneToMany(mappedBy: 'typeEvent', targetEntity: Event::class)]
     private Collection $events;
 
     public function __construct()
@@ -27,9 +27,9 @@ class TypeEvent
         $this->events = new ArrayCollection();
     }
 
-    public function getId(): ?int
+    public function getIdType(): ?int
     {
-        return $this->id;
+        return $this->idType;
     }
 
     public function getNom(): ?string
@@ -56,7 +56,7 @@ class TypeEvent
     {
         if (!$this->events->contains($event)) {
             $this->events->add($event);
-            $event->setType($this);
+            $event->setTypeEvent($this);
         }
 
         return $this;
@@ -66,8 +66,8 @@ class TypeEvent
     {
         if ($this->events->removeElement($event)) {
             // set the owning side to null (unless already changed)
-            if ($event->getType() === $this) {
-                $event->setType(null);
+            if ($event->getTypeEvent() === $this) {
+                $event->setTypeEvent(null);
             }
         }
 

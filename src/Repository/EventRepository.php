@@ -22,19 +22,31 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return Event[] Returns an array of upcoming active events
+     * @return Event[] Returns an array of active events
      */
-    public function findUpcomingEvents(int $limit = 5): array
+    public function findActiveEvents(): array
     {
-        $today = new \DateTime();
+        return $this->createQueryBuilder('e')
+            ->andWhere('e.status = :status')
+            ->setParameter('status', 'ACTIVE')
+            ->orderBy('e.dateEvent', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return Event[] Returns an array of upcoming events
+     */
+    public function findUpcomingEvents(): array
+    {
+        $now = new \DateTime();
         
         return $this->createQueryBuilder('e')
             ->andWhere('e.status = :status')
-            ->andWhere('e.dateEvent >= :today')
+            ->andWhere('e.dateEvent >= :now')
             ->setParameter('status', 'ACTIVE')
-            ->setParameter('today', $today)
+            ->setParameter('now', $now->format('Y-m-d'))
             ->orderBy('e.dateEvent', 'ASC')
-            ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
     }

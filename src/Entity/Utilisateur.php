@@ -62,11 +62,15 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\JoinColumn(name: 'role_code', referencedColumnName: 'code', nullable: false)]
     private ?Role $role = null;
 
+    #[ORM\OneToMany(mappedBy: 'conducteur', targetEntity: EventParticipation::class)]
+    private Collection $parrainages;
+
     public function __construct()
     {
         $this->reclamations = new ArrayCollection();
         $this->eventParticipations = new ArrayCollection();
         $this->createdAt = new \DateTime();
+        $this->parrainages = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -341,6 +345,36 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($eventParticipation->getUtilisateur() === $this) {
                 $eventParticipation->setUtilisateur(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, EventParticipation>
+     */
+    public function getParrainages(): Collection
+    {
+        return $this->parrainages;
+    }
+
+    public function addParrainage(EventParticipation $eventParticipation): static
+    {
+        if (!$this->parrainages->contains($eventParticipation)) {
+            $this->parrainages->add($eventParticipation);
+            $eventParticipation->setConducteur($this);
+        }
+
+        return $this;
+    }
+
+    public function removeParrainage(EventParticipation $eventParticipation): static
+    {
+        if ($this->parrainages->removeElement($eventParticipation)) {
+            // set the owning side to null (unless already changed)
+            if ($eventParticipation->getConducteur() === $this) {
+                $eventParticipation->setConducteur(null);
             }
         }
 

@@ -5,7 +5,6 @@ namespace App\Entity;
 use App\Repository\ReclamationRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ReclamationRepository::class)]
 class Reclamation
@@ -16,28 +15,16 @@ class Reclamation
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Assert\NotBlank(message: "Subject cannot be empty")]
-    #[Assert\Length(
-        min: 5,
-        max: 255,
-        minMessage: "Subject must be at least {{ limit }} characters long",
-        maxMessage: "Subject cannot be longer than {{ limit }} characters"
-    )]
     private ?string $subject = null;
 
     #[ORM\Column(type: Types::TEXT)]
-    #[Assert\NotBlank(message: "Description cannot be empty")]
-    #[Assert\Length(
-        min: 10,
-        minMessage: "Description must be at least {{ limit }} characters long"
-    )]
     private ?string $description = null;
 
     #[ORM\ManyToOne(inversedBy: 'reclamations')]
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false)]
-    #[Assert\NotNull(message: "User must be specified")]
     private ?Utilisateur $user = null;
 
+<<<<<<< HEAD
     #[ORM\Column(length: 20, options: ["default" => "pending"])]
     #[Assert\NotBlank]
     #[Assert\Choice(
@@ -46,15 +33,15 @@ class Reclamation
     )]
     // Note: All methods (getStatus/setStatus and getState/setState) use this property
     private ?string $status = "pending";
+=======
+    #[ORM\Column(length: 50, options: ['default' => 'pending'])]
+    private ?string $state = 'pending';
+>>>>>>> origin/Gestion_Event_Hassen
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $date = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Assert\Length(
-        max: 1000,
-        maxMessage: "Reply cannot be longer than {{ limit }} characters"
-    )]
     private ?string $reply = null;
 
     public function __construct()
@@ -105,14 +92,15 @@ class Reclamation
         return $this;
     }
 
-    public function getStatus(): ?string
+    public function getState(): ?string
     {
-        return $this->status;
+        return $this->state;
     }
 
-    public function setStatus(string $status): static
+    public function setState(string $state): static
     {
-        $this->status = $status;
+        $this->state = $state;
+
         return $this;
     }
 
@@ -143,17 +131,6 @@ class Reclamation
     {
         $this->reply = $reply;
 
-        return $this;
-    }
-
-    public function getState(): ?string
-    {
-        return $this->status;
-    }
-
-    public function setState(string $state): self
-    {
-        $this->status = $state;
         return $this;
     }
 }

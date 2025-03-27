@@ -27,7 +27,11 @@
                     <p class="mt-2 text-gray-600">Votre historique de réservations est vide pour le moment.</p>
                     <a href="{{ path('app_passager_liste_annonce') }}" class="mt-4 inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition duration-300">
                         <i class="fas fa-search mr-2"></i>
+<<<<<<< HEAD
                         Trouver un trajet
+=======
+                        Trouver une annonce
+>>>>>>> origin/Gestion_Event_Hassen
                     </a>
                 </div>
             {% else %}
@@ -46,15 +50,47 @@
                                 <tr>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="text-sm font-medium text-gray-900">
+<<<<<<< HEAD
                                             {{ reservation.annonce.trajet.getDeparturePoint() }} → {{ reservation.annonce.trajet.getArrivalPoint() }}
+=======
+                                            {% if reservation.type == 'EVENT' and reservation.annonceEvent %}
+                                                {{ reservation.annonceEvent.departurePoint }} → {{ reservation.annonceEvent.arrivalPoint }}
+                                                <div class="text-xs text-gray-500">
+                                                    Pour l'événement: {{ reservation.annonceEvent.event.nom }}
+                                                </div>
+                                            {% elseif reservation.annonce and reservation.annonce.trajet %}
+                                                {{ reservation.annonce.trajet.getDeparturePoint() }} → {{ reservation.annonce.trajet.getArrivalPoint() }}
+                                            {% else %}
+                                                <span class="text-gray-500">Informations non disponibles</span>
+                                            {% endif %}
+>>>>>>> origin/Gestion_Event_Hassen
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="text-sm text-gray-900">
+<<<<<<< HEAD
                                             {{ reservation.annonce.departureDate|date("d/m/Y") }}
                                         </div>
                                         <div class="text-xs text-gray-500">
                                             {{ reservation.annonce.departureDate|date("H:i") }}
+=======
+                                            {% if reservation.type == 'EVENT' and reservation.annonceEvent %}
+                                                {{ reservation.annonceEvent.departureDate|date("d/m/Y") }}
+                                            {% elseif reservation.annonce %}
+                                                {{ reservation.annonce.departureDate|date("d/m/Y") }}
+                                            {% else %}
+                                                {{ reservation.dateReservation|date("d/m/Y") }}
+                                            {% endif %}
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            {% if reservation.type == 'EVENT' and reservation.annonceEvent %}
+                                                {{ reservation.annonceEvent.departureDate|date("H:i") }}
+                                            {% elseif reservation.annonce %}
+                                                {{ reservation.annonce.departureDate|date("H:i") }}
+                                            {% else %}
+                                                {{ reservation.dateReservation|date("H:i") }}
+                                            {% endif %}
+>>>>>>> origin/Gestion_Event_Hassen
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
@@ -64,13 +100,41 @@
                                             </div>
                                             <div class="ml-3">
                                                 <div class="text-sm font-medium text-gray-900">
+<<<<<<< HEAD
                                                     Conducteur #{{ reservation.annonce.driverId }}
+=======
+                                                    {% if reservation.type == 'EVENT' and reservation.annonceEvent %}
+                                                        {% if reservation.driver %}
+                                                            {{ reservation.driver.prenom }} {{ reservation.driver.nom }}
+                                                        {% else %}
+                                                            Conducteur #{{ reservation.annonceEvent.driverId }}
+                                                        {% endif %}
+                                                    {% elseif reservation.annonce %}
+                                                        {% if reservation.driver %}
+                                                            {{ reservation.driver.prenom }} {{ reservation.driver.nom }}
+                                                        {% else %}
+                                                            Conducteur #{{ reservation.annonce.driverId }}
+                                                        {% endif %}
+                                                    {% else %}
+                                                        Conducteur inconnu
+                                                    {% endif %}
+>>>>>>> origin/Gestion_Event_Hassen
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+<<<<<<< HEAD
                                         {{ reservation.annonce.trajet.price }} €
+=======
+                                        {% if reservation.type == 'EVENT' and reservation.annonceEvent %}
+                                            {{ reservation.annonceEvent.prix|number_format(2, ',', ' ') }} €
+                                        {% elseif reservation.annonce and reservation.annonce.trajet %}
+                                            {{ reservation.annonce.trajet.price }} €
+                                        {% else %}
+                                            - €
+                                        {% endif %}
+>>>>>>> origin/Gestion_Event_Hassen
                                     </td>
                                 </tr>
                                 {% if reservation.comment %}

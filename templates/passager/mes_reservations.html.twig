@@ -13,7 +13,11 @@
                 <div class="flex space-x-4">
                     <a href="{{ path('app_passager_liste_annonce') }}" class="inline-flex items-center px-4 py-2 bg-primary-ultra-light text-primary rounded-xl border border-primary/20 hover:bg-primary-ultra-light/70 transition duration-300">
                         <i class="fas fa-search mr-2"></i>
+<<<<<<< HEAD
                         Chercher un trajet
+=======
+                        Chercher une annonce
+>>>>>>> origin/Gestion_Event_Hassen
                     </a>
                     <a href="{{ path('app_passager_historique_reservations') }}" class="inline-flex items-center px-4 py-2 bg-gray-50 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-100 transition duration-300">
                         <i class="fas fa-history mr-2"></i>
@@ -43,7 +47,11 @@
                     <p class="mt-2 text-gray-600">Vous n'avez pas encore de réservations de trajet en cours.</p>
                     <a href="{{ path('app_passager_liste_annonce') }}" class="mt-4 inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition duration-300">
                         <i class="fas fa-search mr-2"></i>
+<<<<<<< HEAD
                         Trouver un trajet
+=======
+                        Trouver une annonce
+>>>>>>> origin/Gestion_Event_Hassen
                     </a>
                 </div>
             {% else %}
@@ -63,18 +71,61 @@
                                 <tr>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="text-sm font-medium text-gray-900">
+<<<<<<< HEAD
                                             {{ reservation.annonce.trajet.getDeparturePoint() }} → {{ reservation.annonce.trajet.getArrivalPoint() }}
                                         </div>
                                         <div class="text-xs text-gray-500">
                                             Conducteur #{{ reservation.annonce.driverId }}
+=======
+                                            {% if reservation.type == 'EVENT' and reservation.annonceEvent %}
+                                                {{ reservation.annonceEvent.departurePoint }} → {{ reservation.annonceEvent.arrivalPoint }}
+                                                <div class="text-xs text-gray-500">
+                                                    Pour l'événement: {{ reservation.annonceEvent.event.nom }}
+                                                </div>
+                                                <div class="text-xs text-gray-500">
+                                                    {% if reservation.driver %}
+                                                        Conducteur: {{ reservation.driver.prenom }} {{ reservation.driver.nom }}
+                                                    {% else %}
+                                                        Conducteur #{{ reservation.annonceEvent.driverId }}
+                                                    {% endif %}
+                                                </div>
+                                            {% elseif reservation.annonce and reservation.annonce.trajet %}
+                                                {{ reservation.annonce.trajet.getDeparturePoint() }} → {{ reservation.annonce.trajet.getArrivalPoint() }}
+                                                <div class="text-xs text-gray-500">
+                                                    {% if reservation.driver %}
+                                                        Conducteur: {{ reservation.driver.prenom }} {{ reservation.driver.nom }}
+                                                    {% else %}
+                                                        Conducteur #{{ reservation.annonce.driverId }}
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-gray-500">Informations non disponibles</span>
+                                            {% endif %}
+>>>>>>> origin/Gestion_Event_Hassen
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="text-sm text-gray-900">
+<<<<<<< HEAD
                                             {{ reservation.annonce.departureDate|date("d/m/Y") }}
                                         </div>
                                         <div class="text-xs text-gray-500">
                                             {{ reservation.annonce.departureDate|date("H:i") }}
+=======
+                                            {% if reservation.type == 'EVENT' and reservation.annonceEvent %}
+                                                {{ reservation.annonceEvent.departureDate|date("d/m/Y") }}
+                                                <div class="text-xs text-gray-500">
+                                                    {{ reservation.annonceEvent.departureDate|date("H:i") }}
+                                                </div>
+                                            {% elseif reservation.annonce %}
+                                                {{ reservation.annonce.departureDate|date("d/m/Y") }}
+                                                <div class="text-xs text-gray-500">
+                                                    {{ reservation.annonce.departureDate|date("H:i") }}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-gray-500">Date inconnue</span>
+                                            {% endif %}
+>>>>>>> origin/Gestion_Event_Hassen
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
@@ -105,6 +156,7 @@
                                         {% endif %}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+<<<<<<< HEAD
                                         {{ reservation.annonce.trajet.price }} €
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -115,6 +167,33 @@
                                                     <i class="fas fa-times-circle mr-1"></i> Annuler
                                                 </button>
                                             </form>
+=======
+                                        {% if reservation.type == 'EVENT' and reservation.annonceEvent %}
+                                            {{ reservation.annonceEvent.prix }} DT
+                                        {% elseif reservation.annonce and reservation.annonce.trajet %}
+                                            {{ reservation.annonce.trajet.price }} DT
+                                        {% else %}
+                                            - 
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        {% if reservation.status == 'PENDING' or reservation.status == 'ACCEPTED' %}
+                                            {% if reservation.type == 'EVENT' %}
+                                                <form action="{{ path('app_passager_reservation_event_annuler', {'id': reservation.id}) }}" method="POST" class="inline">
+                                                    <button type="submit" class="text-red-500 hover:text-red-700"
+                                                            onclick="return confirm('Êtes-vous sûr de vouloir annuler cette réservation?')">
+                                                        <i class="fas fa-times-circle mr-1"></i> Annuler
+                                                    </button>
+                                                </form>
+                                            {% else %}
+                                                <form action="{{ path('app_passager_annuler_reservation', {'id': reservation.id}) }}" method="POST" class="inline">
+                                                    <button type="submit" class="text-red-500 hover:text-red-700"
+                                                            onclick="return confirm('Êtes-vous sûr de vouloir annuler cette réservation?')">
+                                                        <i class="fas fa-times-circle mr-1"></i> Annuler
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+>>>>>>> origin/Gestion_Event_Hassen
                                         {% endif %}
                                     </td>
                                 </tr>

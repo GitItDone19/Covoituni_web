@@ -7,17 +7,24 @@ use App\Entity\Utilisateur;
 use App\Repository\UtilisateurRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 use Symfony\Component\Routing\Annotation\Route;
 
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Annotation\Route;
+use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\Trajet;
 use App\Repository\TrajetRepository;
 use App\Repository\AnnonceRepository;
 use App\Entity\Annonce;
 use App\Entity\Reservation;
 use App\Entity\Reclamation;
+use App\Repository\ReservationRepository;
+use App\Repository\EventRepository;
+use App\Repository\AnnonceEventRepository;
+use App\Repository\EventParticipationRepository;
+use App\Entity\EventParticipation;
 
 #[Route('/passager')]
 class PassagerController extends AbstractController
@@ -497,6 +504,33 @@ class PassagerController extends AbstractController
         // Récupérer les réservations de l'utilisateur
         $reservations = $entityManager->getRepository(Reservation::class)
             ->findBy(['userId' => $user->getId()], ['dateReservation' => 'DESC']);
+        // Récupérer les réservations de l'utilisateur avec les conducteurs
+        $reservations = $entityManager->getRepository(Reservation::class)
+            ->createQueryBuilder('r')
+            ->leftJoin('r.annonce', 'a')
+            ->leftJoin('r.annonceEvent', 'ae')
+            ->leftJoin('App\Entity\Utilisateur', 'u1', 'WITH', 'a.driver_id = u1.id')
+            ->leftJoin('App\Entity\Utilisateur', 'u2', 'WITH', 'ae.driverId = u2.id')
+            ->where('r.userId = :userId')
+            ->setParameter('userId', $user->getId())
+            ->orderBy('r.dateReservation', 'DESC')
+            ->getQuery()
+            ->getResult();
+        
+        // Récupérer les données des conducteurs pour chaque réservation
+        foreach ($reservations as $reservation) {
+            if ($reservation->getType() == 'TRAJET' && $reservation->getAnnonce()) {
+                $driverId = $reservation->getAnnonce()->getDriverId();
+                $driver = $entityManager->getRepository('App\Entity\Utilisateur')
+                    ->find($driverId);
+                $reservation->driver = $driver;
+            } elseif ($reservation->getType() == 'EVENT' && $reservation->getAnnonceEvent()) {
+                $driverId = $reservation->getAnnonceEvent()->getDriverId();
+                $driver = $entityManager->getRepository('App\Entity\Utilisateur')
+                    ->find($driverId);
+                $reservation->driver = $driver;
+            }
+        }
         
         return $this->render('passager/mes_reservations.html.twig', [
             'user' => $user,
@@ -562,5 +596,295 @@ class PassagerController extends AbstractController
             'user' => $user,
             'reservations' => $reservations
         ]);
+    }
+
+        // Récupérer les réservations d'événements terminées
+        $eventReservations = $entityManager->getRepository(Reservation::class)
+            ->createQueryBuilder('r')
+            ->innerJoin('r.annonceEvent', 'ae')
+            ->where('r.userId = :userId')
+            ->andWhere('r.type = :type')
+            ->andWhere('ae.status = :status')
+            ->setParameter('userId', $user->getId())
+            ->setParameter('type', 'EVENT')
+            ->setParameter('status', 'termine')
+            ->orderBy('r.dateReservation', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        // Combiner les deux types de réservations
+        $allReservations = array_merge($reservations, $eventReservations);
+        
+        // Trier par date de réservation (la plus récente en premier)
+        usort($allReservations, function($a, $b) {
+            return $b->getDateReservation() <=> $a->getDateReservation();
+        });
+        
+        // Récupérer les données des conducteurs pour chaque réservation
+        foreach ($allReservations as $reservation) {
+            if ($reservation->getType() == 'TRAJET' && $reservation->getAnnonce()) {
+                $driverId = $reservation->getAnnonce()->getDriverId();
+                $driver = $entityManager->getRepository('App\Entity\Utilisateur')
+                    ->find($driverId);
+                $reservation->driver = $driver;
+            } elseif ($reservation->getType() == 'EVENT' && $reservation->getAnnonceEvent()) {
+                $driverId = $reservation->getAnnonceEvent()->getDriverId();
+                $driver = $entityManager->getRepository('App\Entity\Utilisateur')
+                    ->find($driverId);
+                $reservation->driver = $driver;
+            }
+        }
+        
+        return $this->render('passager/historique_reservations.html.twig', [
+            'user' => $user,
+            'reservations' => $allReservations
+        ]);
+    }
+
+    #[Route('/passager/events', name: 'app_passager_events')]
+    public function events(EventRepository $eventRepository): Response
+    {
+        $events = $eventRepository->findActiveEvents();
+
+        return $this->render('passager/events.html.twig', [
+            'events' => $events,
+        ]);
+    }
+
+    #[Route('/passager/event/{id}', name: 'app_passager_event_show')]
+    public function showEvent(int $id, EventRepository $eventRepository, EventParticipationRepository $participationRepository): Response
+    {
+        $event = $eventRepository->find($id);
+        
+        if (!$event) {
+            throw $this->createNotFoundException('Événement non trouvé');
+        }
+        
+        $user = $this->getUser();
+        $isParticipant = false;
+        
+        // Vérifier si l'utilisateur participe déjà à l'événement
+        $participation = $participationRepository->findOneBy([
+            'event' => $event,
+            'utilisateur' => $user
+        ]);
+        
+        if ($participation) {
+            $isParticipant = true;
+        }
+        
+        return $this->render('passager/event_show.html.twig', [
+            'event' => $event,
+            'isParticipant' => $isParticipant
+        ]);
+    }
+
+    #[Route('/passager/event/{id}/participer', name: 'app_passager_event_participer', methods: ['POST'])]
+    public function participerEvent(int $id, EventRepository $eventRepository): Response
+    {
+        $event = $eventRepository->find($id);
+        
+        if (!$event) {
+            throw $this->createNotFoundException('Événement non trouvé');
+        }
+        
+        $user = $this->getUser();
+        
+        $entityManager = $this->getDoctrine()->getManager();
+        
+        // Vérifier si l'utilisateur participe déjà à l'événement
+        $existingParticipation = $entityManager->getRepository(EventParticipation::class)->findOneBy([
+            'event' => $event,
+            'utilisateur' => $user
+        ]);
+        
+        if ($existingParticipation) {
+            $this->addFlash('info', 'Vous participez déjà à cet événement.');
+            return $this->redirectToRoute('app_passager_event_show', ['id' => $id]);
+        }
+        
+        // Créer une nouvelle participation
+        $participation = new EventParticipation();
+        $participation->setEvent($event);
+        $participation->setUtilisateur($user);
+        
+        $entityManager->persist($participation);
+        $entityManager->flush();
+        
+        $this->addFlash('success', 'Vous avez été inscrit à l\'événement avec succès !');
+        return $this->redirectToRoute('app_passager_event_show', ['id' => $id]);
+    }
+
+    #[Route('/passager/event/{id}/annuler-participation', name: 'app_passager_event_annuler_participation', methods: ['POST'])]
+    public function annulerParticipationEvent(int $id, EventRepository $eventRepository, EventParticipationRepository $participationRepository, ReservationRepository $reservationRepository): Response
+    {
+        $event = $eventRepository->find($id);
+        
+        if (!$event) {
+            throw $this->createNotFoundException('Événement non trouvé');
+        }
+        
+        $user = $this->getUser();
+        
+        // Trouver la participation de l'utilisateur
+        $participation = $participationRepository->findOneBy([
+            'event' => $event,
+            'utilisateur' => $user
+        ]);
+        
+        if (!$participation) {
+            $this->addFlash('error', 'Vous ne participez pas à cet événement.');
+            return $this->redirectToRoute('app_passager_event_show', ['id' => $id]);
+        }
+        
+        // Vérifier s'il existe des réservations liées à cet événement pour cet utilisateur
+        $reservationsForEvent = $reservationRepository->findBy([
+            'userId' => $user->getId(),
+            'type' => 'EVENT'
+        ]);
+        
+        $hasLinkedReservations = false;
+        foreach ($reservationsForEvent as $reservation) {
+            if ($reservation->getAnnonceEvent() && $reservation->getAnnonceEvent()->getEvent()->getIdEvent() === $id) {
+                $hasLinkedReservations = true;
+                break;
+            }
+        }
+        
+        if ($hasLinkedReservations) {
+            $this->addFlash('error', 'Vous avez des réservations de covoiturage liées à cet événement. Veuillez d\'abord annuler ces réservations.');
+            return $this->redirectToRoute('app_passager_event_show', ['id' => $id]);
+        }
+        
+        try {
+            $entityManager = $this->getDoctrine()->getManager();
+            $entityManager->remove($participation);
+            $entityManager->flush();
+            
+            $this->addFlash('success', 'Votre participation à l\'événement a été annulée.');
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'Impossible d\'annuler votre participation. Veuillez vérifier que vous n\'avez pas de réservations liées à cet événement.');
+        }
+        
+        return $this->redirectToRoute('app_passager_event_show', ['id' => $id]);
+    }
+
+    #[Route('/passager/event/{id}/annonces', name: 'app_passager_event_annonces')]
+    public function eventAnnonces(int $id, EventRepository $eventRepository, AnnonceEventRepository $annonceEventRepository): Response
+    {
+        $event = $eventRepository->find($id);
+        
+        if (!$event) {
+            throw $this->createNotFoundException('Événement non trouvé');
+        }
+        
+        $annonces = $annonceEventRepository->findByEvent($id);
+        
+        return $this->render('passager/event_annonces.html.twig', [
+            'event' => $event,
+            'annonces' => $annonces,
+        ]);
+    }
+
+    #[Route('/passager/event/annonce/{id}/reserver', name: 'app_passager_event_annonce_reserver')]
+    public function reserverEventAnnonce(int $id, Request $request, AnnonceEventRepository $annonceEventRepository, EntityManagerInterface $entityManager): Response
+    {
+        $annonceEvent = $annonceEventRepository->find($id);
+        
+        if (!$annonceEvent) {
+            throw $this->createNotFoundException('Annonce non trouvée');
+        }
+        
+        // Vérifier si l'annonce est toujours ouverte
+        if ($annonceEvent->getStatus() !== 'ouvert') {
+            $this->addFlash('error', 'Cette annonce n\'est plus disponible pour les réservations.');
+            return $this->redirectToRoute('app_passager_event_annonces', ['id' => $annonceEvent->getEvent()->getIdEvent()]);
+        }
+        
+        // Vérifier s'il reste des places
+        if ($annonceEvent->getAvailableSeats() <= 0) {
+            $this->addFlash('error', 'Il n\'y a plus de places disponibles pour cette annonce.');
+            return $this->redirectToRoute('app_passager_event_annonces', ['id' => $annonceEvent->getEvent()->getIdEvent()]);
+        }
+        
+        $user = $this->getUser();
+        
+        if ($request->isMethod('POST')) {
+            $comment = $request->request->get('comment');
+            
+            // Créer une nouvelle réservation
+            $reservation = new Reservation();
+            $reservation->setAnnonceEvent($annonceEvent);
+            $reservation->setUserId($user->getId());
+            $reservation->setType('EVENT');
+            $reservation->setStatus('PENDING');
+            
+            if ($comment) {
+                $reservation->setComment($comment);
+            }
+            
+            // Diminuer le nombre de places disponibles
+            $annonceEvent->setAvailableSeats($annonceEvent->getAvailableSeats() - 1);
+            
+            // Si plus de places, mettre le statut à "plein"
+            if ($annonceEvent->getAvailableSeats() <= 0) {
+                $annonceEvent->setStatus('plein');
+            }
+            
+            $entityManager->persist($reservation);
+            $entityManager->flush();
+            
+            $this->addFlash('success', 'Votre réservation a été effectuée avec succès ! Elle est en attente de confirmation par le conducteur.');
+            return $this->redirectToRoute('app_passager_mes_reservations');
+        }
+        
+        return $this->render('passager/event_annonce_reserver.html.twig', [
+            'annonce' => $annonceEvent,
+        ]);
+    }
+
+    #[Route('/passager/reservation-event/{id}/annuler', name: 'app_passager_reservation_event_annuler', methods: ['POST'])]
+    public function annulerReservationEvent(int $id, ReservationRepository $reservationRepository, EntityManagerInterface $entityManager): Response
+    {
+        $reservation = $reservationRepository->find($id);
+        
+        if (!$reservation) {
+            throw $this->createNotFoundException('Réservation non trouvée');
+        }
+        
+        $user = $this->getUser();
+        
+        // Vérifier que l'utilisateur est bien le créateur de la réservation
+        if ($reservation->getUserId() !== $user->getId()) {
+            $this->addFlash('error', 'Vous n\'êtes pas autorisé à annuler cette réservation.');
+            return $this->redirectToRoute('app_passager_mes_reservations');
+        }
+        
+        // Vérifier que la réservation peut être annulée
+        if ($reservation->getStatus() === 'COMPLETED' || $reservation->getStatus() === 'CANCELLED_BY_PASSENGER') {
+            $this->addFlash('error', 'Cette réservation ne peut pas être annulée.');
+            return $this->redirectToRoute('app_passager_mes_reservations');
+        }
+        
+        $annonceEvent = $reservation->getAnnonceEvent();
+        
+        // Mettre à jour le statut de la réservation
+        $reservation->setStatus('CANCELLED_BY_PASSENGER');
+        $reservation->setUpdatedAt(new \DateTime());
+        
+        // Mettre à jour le nombre de places disponibles dans l'annonce
+        if ($annonceEvent) {
+            $annonceEvent->setAvailableSeats($annonceEvent->getAvailableSeats() + 1);
+            
+            // Si l'annonce était pleine, la remettre à "ouvert"
+            if ($annonceEvent->getStatus() === 'plein') {
+                $annonceEvent->setStatus('ouvert');
+            }
+        }
+        
+        $entityManager->flush();
+        
+        $this->addFlash('success', 'Votre réservation a été annulée avec succès.');
+        return $this->redirectToRoute('app_passager_mes_reservations');
     }
 } 
