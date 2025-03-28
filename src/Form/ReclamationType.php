@@ -18,30 +18,14 @@ class ReclamationType extends AbstractType
         $builder
             ->add('subject', TextType::class, [
                 'label' => 'Sujet',
-                'constraints' => [
-                    new NotBlank(['message' => 'Le sujet ne peut pas être vide']),
-                    new Length([
-                        'min' => 5,
-                        'minMessage' => 'Le sujet doit contenir au moins {{ limit }} caractères',
-                        'max' => 255,
-                        'maxMessage' => 'Le sujet ne peut pas dépasser {{ limit }} caractères'
-                    ])
-                ],
                 'attr' => [
-                    'placeholder' => 'Titre de votre réclamation'
+                    'placeholder' => 'Entrez le sujet de votre réclamation'
                 ]
             ])
             ->add('description', TextareaType::class, [
                 'label' => 'Description',
-                'constraints' => [
-                    new NotBlank(['message' => 'La description ne peut pas être vide']),
-                    new Length([
-                        'min' => 10,
-                        'minMessage' => 'La description doit contenir au moins {{ limit }} caractères'
-                    ])
-                ],
                 'attr' => [
-                    'rows' => 5,
+                    'rows' => 6,
                     'placeholder' => 'Décrivez votre problème en détail...'
                 ]
             ])

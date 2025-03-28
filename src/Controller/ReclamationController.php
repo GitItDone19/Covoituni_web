@@ -4,121 +4,99 @@ namespace App\Controller;
 
 use App\Entity\Reclamation;
 use App\Form\ReclamationType;
-use App\Repository\ReclamationRepository;
-use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Doctrine\ORM\EntityManagerInterface;
 
 #[Route('/reclamation')]
 class ReclamationController extends AbstractController
 {
-    #[Route('/', name: 'app_reclamation_index', methods: ['GET'])]
-    public function index(ReclamationRepository $reclamationRepository): Response
+    private $doctrine;
+
+    public function __construct(ManagerRegistry $doctrine)
+    {
+        $this->doctrine = $doctrine;
+    }
+
+    #[Route('/', name: 'app_passager_reclamation_index')]
+    public function index(): Response
     {
         $user = $this->getUser();
+        $reclamations = $this->doctrine->getRepository(Reclamation::class)->findBy(['user' => $user]);
         
-        // Si c'est un admin, afficher toutes les réclamations
-        if ($this->isGranted('ROLE_ADMIN')) {
-            $reclamations = $reclamationRepository->findAll();
-        } else {
-            // Sinon, n'afficher que les réclamations de l'utilisateur connecté
-            $reclamations = $reclamationRepository->findBy(['user' => $user]);
-        }
-        
-        return $this->render('reclamation/index.html.twig', [
-            'reclamations' => $reclamations,
+        return $this->render('passager/reclamation/index.html.twig', [
+            'reclamations' => $reclamations
         ]);
     }
 
-    #[Route('/new', name: 'app_reclamation_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $entityManager): Response
+    #[Route('/{id}', name: 'app_passager_reclamation_show', methods: ['GET'])]
+    public function show(Reclamation $reclamation): Response
     {
-        // Les admins ne peuvent pas créer de réclamations
-        if ($this->isGranted('ROLE_ADMIN')) {
-            throw new AccessDeniedException('Admins cannot create reclamations');
+        // Vérifier que l'utilisateur est bien le propriétaire de la réclamation
+        if ($reclamation->getUser() !== $this->getUser()) {
+            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à voir cette réclamation');
         }
         
+        return $this->render('passager/reclamation/show.html.twig', [
+            'reclamation' => $reclamation,
+            'edit_url' => $this->generateUrl('app_passager_reclamation_edit', ['id' => $reclamation->getId()]),
+        ]);
+    }
+
+    #[Route('/new', name: 'app_passager_reclamation_new')]
+    public function new(Request $request): Response
+    {
         $reclamation = new Reclamation();
-        $reclamation->setUser($this->getUser());
-        $reclamation->setDate(new \DateTime());
-        $reclamation->setStatus('pending');
-        
         $form = $this->createForm(ReclamationType::class, $reclamation);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            $reclamation->setUser($this->getUser());
+            $reclamation->setDate(new \DateTime());
+            $reclamation->setStatus('pending');
+            
+            $entityManager = $this->doctrine->getManager();
             $entityManager->persist($reclamation);
             $entityManager->flush();
 
-            return $this->redirectToRoute('app_reclamation_index', [], Response::HTTP_SEE_OTHER);
+            $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
+            return $this->redirectToRoute('app_passager_reclamation_index');
         }
 
-        return $this->render('reclamation/new.html.twig', [
-            'reclamation' => $reclamation,
-            'form' => $form,
+        return $this->render('passager/reclamation/new.html.twig', [
+            'form' => $form->createView(),
         ]);
     }
 
-    #[Route('/{id}', name: 'app_reclamation_show', methods: ['GET'])]
-    public function show(Reclamation $reclamation): Response
+    #[Route('/{id}/edit', name: 'app_passager_reclamation_edit', methods: ['GET', 'POST'])]
+    public function edit(Request $request, Reclamation $reclamation): Response
     {
-        // Vérifier que l'utilisateur a le droit de voir cette réclamation
-        if (!$this->isGranted('ROLE_ADMIN') && $reclamation->getUser() !== $this->getUser()) {
-            throw new AccessDeniedException('You cannot view this reclamation');
-        }
-        
-        return $this->render('reclamation/show.html.twig', [
-            'reclamation' => $reclamation,
-        ]);
-    }
-
-    #[Route('/{id}/edit', name: 'app_reclamation_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, Reclamation $reclamation, EntityManagerInterface $entityManager): Response
-    {
-        // Vérification de sécurité: seul le propriétaire peut modifier
+        // Vérifier que l'utilisateur est bien le propriétaire de la réclamation
         if ($reclamation->getUser() !== $this->getUser()) {
-            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à modifier cette réclamation.');
+            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à modifier cette réclamation');
         }
         
         // Vérifier que la réclamation est toujours en attente
         if ($reclamation->getStatus() !== 'pending') {
-            $this->addFlash('error', 'Vous ne pouvez plus modifier cette réclamation car elle est déjà en cours de traitement.');
-            return $this->redirectToRoute('app_reclamation_show', ['id' => $reclamation->getId()]);
+            $this->addFlash('error', 'Vous ne pouvez pas modifier une réclamation qui a déjà été traitée');
+            return $this->redirectToRoute('app_passager_reclamation_show', ['id' => $reclamation->getId()]);
         }
-        
-        // Sauvegarder les valeurs importantes avant la modification
-        $originalUser = $reclamation->getUser();
-        $originalStatus = $reclamation->getStatus();
-        $originalDate = $reclamation->getDate();
         
         $form = $this->createForm(ReclamationType::class, $reclamation);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            // Restaurer les valeurs qui ne doivent pas changer
-            $reclamation->setUser($originalUser);
-            $reclamation->setStatus($originalStatus);
-            $reclamation->setDate($originalDate);
+            $this->doctrine->getManager()->flush();
             
-            try {
-                // Forcer la persistance des modifications
-                $entityManager->persist($reclamation);
-                $entityManager->flush();
-                
-                // Message de succès
-                $this->addFlash('success', 'Votre réclamation a été modifiée avec succès.');
-                
-                return $this->redirectToRoute('app_reclamation_show', ['id' => $reclamation->getId()]);
-            } catch (\Exception $e) {
-                // En cas d'erreur - CORRECTION DE LA SYNTAXE
-                $this->addFlash('error', "Une erreur est survenue lors de l'enregistrement: " . $e->getMessage());
-            }
+            $this->addFlash('success', 'Votre réclamation a été mise à jour avec succès');
+            return $this->redirectToRoute('app_passager_reclamation_show', ['id' => $reclamation->getId()]);
         }
 
-        return $this->render('reclamation/edit.html.twig', [
+        return $this->render('passager/reclamation/edit.html.twig', [
             'reclamation' => $reclamation,
             'form' => $form->createView(),
         ]);
