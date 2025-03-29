@@ -12,8 +12,6 @@ use App\Repository\TrajetRepository;
 use App\Repository\AnnonceRepository;
 use App\Entity\Reservation;
 use Symfony\Component\HttpFoundation\Request;
-<<<<<<< HEAD
-=======
 use App\Entity\Voiture;
 use App\Entity\Event;
 use App\Entity\AnnonceEvent;
@@ -26,7 +24,6 @@ use App\Repository\TypeEventRepository;
 use App\Repository\AnnonceEventRepository;
 use App\Repository\CarRepository;
 use App\Repository\EventParticipationRepository;
->>>>>>> origin/Gestion_Event_Hassen
 
 #[Route('/conducteur')]
 class ConducteurController extends AbstractController
@@ -477,8 +474,6 @@ class ConducteurController extends AbstractController
         
         return $this->redirectToRoute('app_conducteur_liste_annonce');
     }
-<<<<<<< HEAD
-=======
 
     #[Route('/conducteur/events', name: 'app_conducteur_events')]
     public function events(EventRepository $eventRepository): Response
@@ -1230,5 +1225,4 @@ class ConducteurController extends AbstractController
             'isParticipant' => $isParticipant
         ]);
     }
->>>>>>> origin/Gestion_Event_Hassen
 } 

@@ -12,8 +12,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Annotation\Route;
-use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\Trajet;
 use App\Repository\TrajetRepository;
 use App\Repository\AnnonceRepository;
@@ -30,16 +28,159 @@ use App\Entity\EventParticipation;
 class PassagerController extends AbstractController
 {
     #[Route('/dashboard', name: 'app_passager_dashboard')]
-    public function dashboard(): Response
+    public function dashboard(
+        EntityManagerInterface $entityManager,
+        ReservationRepository $reservationRepository,
+        EventParticipationRepository $eventParticipationRepository
+    ): Response
     {
         // Make sure only users with ROLE_PASSAGER can access this page
         $this->denyAccessUnlessGranted('ROLE_PASSAGER');
         
         $user = $this->getUser();
+        $userId = $user->getId();
+        
+        // Get reservations statistics
+        $reservations = $reservationRepository->findBy(['userId' => $userId]);
+        $reservationsCount = count($reservations);
+        
+        // Get completed and active reservations
+        $completedReservations = array_filter($reservations, function($res) {
+            return $res->getStatus() === 'COMPLETED';
+        });
+        $completedReservationsCount = count($completedReservations);
+        
+        $activeReservations = array_filter($reservations, function($res) {
+            return in_array($res->getStatus(), ['PENDING', 'ACCEPTED']);
+        });
+        $activeReservationsCount = count($activeReservations);
+        
+        // Calculate total savings (based on trips)
+        $totalSavings = 0;
+        foreach ($completedReservations as $reservation) {
+            if ($reservation->getType() === 'TRAJET' && $reservation->getAnnonce()) {
+                $totalSavings += $reservation->getAnnonce()->getTrajet()->getPrice() * 0.4; // Assuming 40% savings compared to driving alone
+            }
+        }
+        
+        // Get event participation stats
+        $eventParticipations = $eventParticipationRepository->findBy(['utilisateur' => $user]);
+        $eventParticipationsCount = count($eventParticipations);
+        
+        // Get upcoming reservations (for upcoming trips section)
+        $upcomingReservations = $entityManager->getRepository(Reservation::class)
+            ->createQueryBuilder('r')
+            ->leftJoin('r.annonce', 'a')
+            ->leftJoin('r.annonceEvent', 'ae')
+            ->leftJoin('App\Entity\Utilisateur', 'u1', 'WITH', 'a.driver_id = u1.id')
+            ->leftJoin('App\Entity\Utilisateur', 'u2', 'WITH', 'ae.driverId = u2.id')
+            ->where('r.userId = :userId')
+            ->andWhere('r.status IN (:statuses)')
+            ->setParameter('userId', $userId)
+            ->setParameter('statuses', ['PENDING', 'ACCEPTED'])
+            ->orderBy('r.dateReservation', 'ASC')
+            ->setMaxResults(5)
+            ->getQuery()
+            ->getResult();
+            
+        // Add driver information to each reservation
+        foreach ($upcomingReservations as $reservation) {
+            if ($reservation->getType() == 'TRAJET' && $reservation->getAnnonce()) {
+                $driverId = $reservation->getAnnonce()->getDriverId();
+                $driver = $entityManager->getRepository('App\Entity\Utilisateur')
+                    ->find($driverId);
+                $reservation->driver = $driver;
+            } elseif ($reservation->getType() == 'EVENT' && $reservation->getAnnonceEvent()) {
+                $driverId = $reservation->getAnnonceEvent()->getDriverId();
+                $driver = $entityManager->getRepository('App\Entity\Utilisateur')
+                    ->find($driverId);
+                $reservation->driver = $driver;
+            }
+        }
+        
+        // Get recent activities
+        $recentActivities = [];
+        
+        // Add reservations to recent activities
+        foreach (array_slice($reservations, 0, 5) as $reservation) {
+            $recentActivities[] = [
+                'type' => 'reservation',
+                'date' => $reservation->getDateReservation(),
+                'data' => $reservation
+            ];
+        }
+        
+        // Add event participations to recent activities
+        foreach ($eventParticipations as $participation) {
+            $recentActivities[] = [
+                'type' => 'event',
+                'date' => $participation->getDateInscription(),
+                'data' => $participation
+            ];
+        }
+        
+        // Sort recent activities by date (newest first)
+        usort($recentActivities, function($a, $b) {
+            return $b['date'] <=> $a['date'];
+        });
+        
+        // Limit to 5 most recent activities
+        $recentActivities = array_slice($recentActivities, 0, 5);
+        
+        // Get reclamations statistics
+        $reclamations = $entityManager->getRepository(Reclamation::class)
+            ->findBy(['user' => $user]);
+        $reclamationsCount = count($reclamations);
+        
+        // Get monthly stats for the chart
+        $monthlyStats = $this->getMonthlyStats($reservations);
         
         return $this->render('passager/dashboard.html.twig', [
-            'user' => $user
+            'user' => $user,
+            'reservationsCount' => $reservationsCount,
+            'completedReservationsCount' => $completedReservationsCount,
+            'activeReservationsCount' => $activeReservationsCount,
+            'eventParticipationsCount' => $eventParticipationsCount,
+            'totalSavings' => $totalSavings,
+            'upcomingReservations' => $upcomingReservations,
+            'recentActivities' => $recentActivities,
+            'reclamationsCount' => $reclamationsCount,
+            'monthlyStats' => $monthlyStats
         ]);
+    }
+    
+    /**
+     * Generate monthly statistics for chart display
+     */
+    private function getMonthlyStats(array $reservations): array
+    {
+        $months = [];
+        $counts = [];
+        
+        // Initialize last 6 months with zero counts
+        for ($i = 5; $i >= 0; $i--) {
+            $date = new \DateTime();
+            $date->modify("-$i month");
+            $monthKey = $date->format('Y-m');
+            $months[] = $date->format('M');
+            $counts[$monthKey] = 0;
+        }
+        
+        // Count reservations by month
+        foreach ($reservations as $reservation) {
+            $date = $reservation->getDateReservation();
+            if ($date) {
+                $monthKey = $date->format('Y-m');
+                if (isset($counts[$monthKey])) {
+                    $counts[$monthKey]++;
+                }
+            }
+        }
+        
+        return [
+            'labels' => $months,
+            'data' => array_values($counts)
+        ];
     }
     
     #[Route('/profile', name: 'app_passager_profile')]
@@ -150,9 +291,19 @@ class PassagerController extends AbstractController
         $rating = $request->request->get('rating');
         $comment = $request->request->get('comment');
         
-        // Validation
-        if (!$conducteurId || !$rating || !$comment) {
-            $this->addFlash('error', 'Tous les champs sont obligatoires');
+        // Validation - check each field individually for better error messages
+        if (!$conducteurId) {
+            $this->addFlash('error', 'Veuillez sélectionner un conducteur');
+            return $this->redirectToRoute('app_passager_avis');
+        }
+        
+        if (!$rating) {
+            $this->addFlash('error', 'Veuillez donner une note');
+            return $this->redirectToRoute('app_passager_avis');
+        }
+        
+        if (!$comment) {
+            $this->addFlash('error', 'Veuillez ajouter un commentaire');
             return $this->redirectToRoute('app_passager_avis');
         }
         
@@ -592,12 +743,6 @@ class PassagerController extends AbstractController
                 'status' => 'COMPLETED'
             ], ['dateReservation' => 'DESC']);
         
-        return $this->render('passager/historique_reservations.html.twig', [
-            'user' => $user,
-            'reservations' => $reservations
-        ]);
-    }
-
         // Récupérer les réservations d'événements terminées
         $eventReservations = $entityManager->getRepository(Reservation::class)
             ->createQueryBuilder('r')
@@ -642,12 +787,25 @@ class PassagerController extends AbstractController
     }
 
     #[Route('/passager/events', name: 'app_passager_events')]
-    public function events(EventRepository $eventRepository): Response
+    public function events(EventRepository $eventRepository, EventParticipationRepository $participationRepository): Response
     {
         $events = $eventRepository->findActiveEvents();
+        $user = $this->getUser();
+        
+        // Prepare an array to keep track of events the user participates in
+        $userParticipations = [];
+        
+        // Find all events the user participates in
+        $participations = $participationRepository->findBy(['utilisateur' => $user]);
+        
+        // Create a map of event IDs to quickly check if user participates
+        foreach ($participations as $participation) {
+            $userParticipations[$participation->getEvent()->getIdEvent()] = true;
+        }
 
         return $this->render('passager/events.html.twig', [
             'events' => $events,
+            'userParticipations' => $userParticipations
         ]);
     }
 
@@ -680,7 +838,7 @@ class PassagerController extends AbstractController
     }
 
     #[Route('/passager/event/{id}/participer', name: 'app_passager_event_participer', methods: ['POST'])]
-    public function participerEvent(int $id, EventRepository $eventRepository): Response
+    public function participerEvent(int $id, EventRepository $eventRepository, EntityManagerInterface $entityManager): Response
     {
         $event = $eventRepository->find($id);
         
@@ -689,8 +847,6 @@ class PassagerController extends AbstractController
         }
         
         $user = $this->getUser();
-        
-        $entityManager = $this->getDoctrine()->getManager();
         
         // Vérifier si l'utilisateur participe déjà à l'événement
         $existingParticipation = $entityManager->getRepository(EventParticipation::class)->findOneBy([
@@ -716,7 +872,7 @@ class PassagerController extends AbstractController
     }
 
     #[Route('/passager/event/{id}/annuler-participation', name: 'app_passager_event_annuler_participation', methods: ['POST'])]
-    public function annulerParticipationEvent(int $id, EventRepository $eventRepository, EventParticipationRepository $participationRepository, ReservationRepository $reservationRepository): Response
+    public function annulerParticipationEvent(int $id, EventRepository $eventRepository, EventParticipationRepository $participationRepository, ReservationRepository $reservationRepository, EntityManagerInterface $entityManager): Response
     {
         $event = $eventRepository->find($id);
         
@@ -757,7 +913,6 @@ class PassagerController extends AbstractController
         }
         
         try {
-            $entityManager = $this->getDoctrine()->getManager();
             $entityManager->remove($participation);
             $entityManager->flush();
             

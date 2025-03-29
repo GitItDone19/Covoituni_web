@@ -24,7 +24,6 @@ class Reclamation
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false)]
     private ?Utilisateur $user = null;
 
-<<<<<<< HEAD
     #[ORM\Column(length: 20, options: ["default" => "pending"])]
     #[Assert\NotBlank]
     #[Assert\Choice(
@@ -33,10 +32,6 @@ class Reclamation
     )]
     // Note: All methods (getStatus/setStatus and getState/setState) use this property
     private ?string $status = "pending";
-=======
-    #[ORM\Column(length: 50, options: ['default' => 'pending'])]
-    private ?string $state = 'pending';
->>>>>>> origin/Gestion_Event_Hassen
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $date = null;
@@ -94,12 +89,25 @@ class Reclamation
 
     public function getState(): ?string
     {
-        return $this->state;
+        return $this->status;
     }
 
     public function setState(string $state): static
     {
-        $this->state = $state;
+        $this->status = $state;
+
+        return $this;
+    }
+
+    // Add alias methods for consistency
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $status): static
+    {
+        $this->status = $status;
 
         return $this;
     }
