@@ -3,6 +3,18 @@
 {% block stylesheets %}
     {{ parent() }}
     <style>
+        /* Debug information */
+        .debug-info {
+            position: fixed;
+            top: 0;
+            right: 0;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            font-size: 12px;
+            z-index: 9999;
+        }
+        
         /* Offcanvas menu styles */
         .offcanvas-menu {
             position: fixed;
@@ -43,6 +55,14 @@
 {% endblock %}
 
 {% block body %}
+    {# Debug information #}
+    <div class="debug-info">
+        <strong>Debug Info:</strong><br>
+        Current route: {{ app.request.get('_route') }}<br>
+        Car variable: {% if car is defined %}defined ({{ car ? 'not null' : 'null' }}){% else %}not defined{% endif %}<br>
+        User ID: {{ app.user ? app.user.id : 'not logged in' }}
+    </div>
+
     {# Navbar Menu Button #}
     <div class="fixed top-4 left-4 z-50">
         <button id="menuToggle" class="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg hover:shadow-xl transition-all duration-300">
@@ -118,7 +138,7 @@
                     </svg>
                     Liste de trajet
                 </a>
-                <a href="{{ path('app_conducteur_voiture') }}" class="sidebar-link flex items-center px-4 py-3 text-sm font-medium rounded-lg {% if app.request.get('_route') == 'app_conducteur_voiture' %}bg-primary-ultra-light text-primary{% else %}text-gray-700 hover:bg-primary-ultra-light hover:text-primary{% endif %} transition-all duration-200">
+                <a href="{% if car is defined and car is not null %}{{ path('app_conducteur_voiture') }}{% else %}{{ path('app_conducteur_voiture_add') }}{% endif %}" class="sidebar-link flex items-center px-4 py-3 text-sm font-medium rounded-lg {% if app.request.get('_route') in ['app_conducteur_voiture', 'app_conducteur_voiture_add', 'app_conducteur_voiture_edit'] %}bg-primary-ultra-light text-primary{% else %}text-gray-700 hover:bg-primary-ultra-light hover:text-primary{% endif %} transition-all duration-200">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-2-2H7L5 14m14-4.5v9.5a1 1 0 01-1 1H6a1 1 0 01-1-1V9.5m14 0a1.5 1.5 0 00-1.5-1.5H6.5a1.5 1.5 0 00-1.5 1.5m15 0v4.5a1.5 1.5 0 01-1.5 1.5H6.5a1.5 1.5 0 01-1.5-1.5V9.5" />

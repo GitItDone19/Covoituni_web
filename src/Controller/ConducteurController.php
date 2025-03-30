@@ -16,6 +16,7 @@ use App\Entity\Voiture;
 use App\Entity\Event;
 use App\Entity\AnnonceEvent;
 use App\Entity\EventParticipation;
+use App\Entity\Car;
 use App\Repository\VoitureRepository;
 use App\Repository\UtilisateurRepository;
 use App\Repository\ReservationRepository;
@@ -28,8 +29,18 @@ use App\Repository\EventParticipationRepository;
 #[Route('/conducteur')]
 class ConducteurController extends AbstractController
 {
+    private function getCarData(CarRepository $carRepository): ?object
+    {
+        $user = $this->getUser();
+        if ($user) {
+            // Find the user's car
+            return $carRepository->findOneBy(['userId' => $user->getId()]);
+        }
+        return null;
+    }
+
     #[Route('/dashboard', name: 'app_conducteur_dashboard')]
-    public function dashboard(): Response
+    public function dashboard(CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -37,12 +48,13 @@ class ConducteurController extends AbstractController
         $user = $this->getUser();
         
         return $this->render('conducteur/dashboard.html.twig', [
-            'user' => $user
+            'user' => $user,
+            'car' => $this->getCarData($carRepository)
         ]);
     }
     
     #[Route('/profile', name: 'app_conducteur_profile')]
-    public function profile(): Response
+    public function profile(CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -50,12 +62,13 @@ class ConducteurController extends AbstractController
         $user = $this->getUser();
         
         return $this->render('conducteur/profile.html.twig', [
-            'user' => $user
+            'user' => $user,
+            'car' => $this->getCarData($carRepository)
         ]);
     }
     
     #[Route('/reclamation', name: 'app_conducteur_reclamation')]
-    public function reclamation(): Response
+    public function reclamation(CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -63,12 +76,13 @@ class ConducteurController extends AbstractController
         $user = $this->getUser();
         
         return $this->render('conducteur/reclamation.html.twig', [
-            'user' => $user
+            'user' => $user,
+            'car' => $this->getCarData($carRepository)
         ]);
     }
     
     #[Route('/annonce', name: 'app_conducteur_annonce')]
-    public function annonce(): Response
+    public function annonce(CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -76,7 +90,8 @@ class ConducteurController extends AbstractController
         $user = $this->getUser();
         
         return $this->render('conducteur/annonce.html.twig', [
-            'user' => $user
+            'user' => $user,
+            'car' => $this->getCarData($carRepository)
         ]);
     }
     
@@ -223,20 +238,25 @@ class ConducteurController extends AbstractController
     }
     
     #[Route('/voiture', name: 'app_conducteur_voiture')]
-    public function voiture(): Response
+    public function voiture(CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
         
         $user = $this->getUser();
         
+        // Get the user's car
+        $voiture = $carRepository->findOneBy(['userId' => $user->getId()]);
+        
         return $this->render('conducteur/voiture.html.twig', [
-            'user' => $user
+            'user' => $user,
+            'voiture' => $voiture,
+            'car' => $voiture
         ]);
     }
     
     #[Route('/liste-trajet', name: 'app_conducteur_liste_trajet')]
-    public function listeTrajet(TrajetRepository $trajetRepository): Response
+    public function listeTrajet(TrajetRepository $trajetRepository, CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -248,12 +268,13 @@ class ConducteurController extends AbstractController
         
         return $this->render('conducteur/liste_trajet.html.twig', [
             'user' => $user,
-            'trajets' => $trajets
+            'trajets' => $trajets,
+            'car' => $this->getCarData($carRepository)
         ]);
     }
     
     #[Route('/liste-annonce', name: 'app_conducteur_liste_annonce')]
-    public function listeAnnonce(AnnonceRepository $annonceRepository): Response
+    public function listeAnnonce(AnnonceRepository $annonceRepository, CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -265,12 +286,13 @@ class ConducteurController extends AbstractController
         
         return $this->render('conducteur/liste_annonce.html.twig', [
             'user' => $user,
-            'annonces' => $annonces
+            'annonces' => $annonces,
+            'car' => $this->getCarData($carRepository)
         ]);
     }
     
     #[Route('/ajouter-trajet', name: 'app_conducteur_ajouter_trajet')]
-    public function ajouterTrajet(): Response
+    public function ajouterTrajet(CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -278,7 +300,8 @@ class ConducteurController extends AbstractController
         $user = $this->getUser();
         
         return $this->render('conducteur/ajouter_trajet.html.twig', [
-            'user' => $user
+            'user' => $user,
+            'car' => $this->getCarData($carRepository)
         ]);
     }
     
@@ -308,7 +331,7 @@ class ConducteurController extends AbstractController
     }
     
     #[Route('/ajouter-annonce', name: 'app_conducteur_ajouter_annonce')]
-    public function ajouterAnnonce(TrajetRepository $trajetRepository): Response
+    public function ajouterAnnonce(TrajetRepository $trajetRepository, CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -320,7 +343,8 @@ class ConducteurController extends AbstractController
         
         return $this->render('conducteur/ajouter_annonce.html.twig', [
             'user' => $user,
-            'trajets' => $trajets
+            'trajets' => $trajets,
+            'car' => $this->getCarData($carRepository)
         ]);
     }
     
@@ -392,7 +416,7 @@ class ConducteurController extends AbstractController
     }
     
     #[Route('/modifier-annonce/{id}', name: 'app_conducteur_modifier_annonce')]
-    public function modifierAnnonce(Annonce $annonce, TrajetRepository $trajetRepository): Response
+    public function modifierAnnonce(Annonce $annonce, TrajetRepository $trajetRepository, CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -409,7 +433,8 @@ class ConducteurController extends AbstractController
         return $this->render('conducteur/modifier_annonce.html.twig', [
             'user' => $user,
             'annonce' => $annonce,
-            'trajets' => $trajets
+            'trajets' => $trajets,
+            'car' => $this->getCarData($carRepository)
         ]);
     }
     
@@ -1223,6 +1248,127 @@ class ConducteurController extends AbstractController
         return $this->render('conducteur/event_show.html.twig', [
             'event' => $event,
             'isParticipant' => $isParticipant
+        ]);
+    }
+
+    #[Route('/voiture/add', name: 'app_conducteur_voiture_add')]
+    public function addVoiture(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this page
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        $user = $this->getUser();
+
+        // Check if user already has a car
+        $existingCar = $entityManager->getRepository(Car::class)->findOneBy(['userId' => $user->getId()]);
+        if ($existingCar) {
+            $this->addFlash('info', 'Vous avez déjà enregistré une voiture. Vous pouvez la modifier ci-dessous.');
+            return $this->redirectToRoute('app_conducteur_voiture');
+        }
+        
+        if ($request->isMethod('POST')) {
+            // Validate input
+            $plaqueImatriculation = $request->request->get('plaqueImatriculation');
+            $marque = $request->request->get('marque');
+            $modele = $request->request->get('modele');
+            $couleur = $request->request->get('couleur');
+            $dateImatriculation = $request->request->get('dateImatriculation');
+            $description = $request->request->get('description');
+            
+            if (!$plaqueImatriculation || !$marque || !$modele || !$couleur || !$dateImatriculation) {
+                $this->addFlash('error', 'Tous les champs marqués * sont obligatoires.');
+                return $this->redirectToRoute('app_conducteur_voiture_add');
+            }
+            
+            // Check if categorie exists, if not, create a default one
+            $categorie = $entityManager->getRepository(\App\Entity\Categorie::class)->findOneBy([]);
+            if (!$categorie) {
+                $categorie = new \App\Entity\Categorie();
+                $categorie->setNom('Standard');
+                $categorie->setDescription('Catégorie standard de véhicule');
+                $entityManager->persist($categorie);
+            }
+            
+            // Create car
+            $car = new Car();
+            $car->setPlaqueImatriculation($plaqueImatriculation);
+            $car->setMarque($marque);
+            $car->setModele($modele);
+            $car->setCouleur($couleur);
+            $car->setDateImatriculation(new \DateTime($dateImatriculation));
+            $car->setDescription($description ?? '');
+            $car->setCategorie($categorie);
+            $car->setUserId($user->getId());
+            
+            $entityManager->persist($car);
+            $entityManager->flush();
+            
+            $this->addFlash('success', 'Votre voiture a été ajoutée avec succès !');
+            return $this->redirectToRoute('app_conducteur_voiture');
+        }
+        
+        // Get categories for the form
+        $categories = $entityManager->getRepository(\App\Entity\Categorie::class)->findAll();
+        
+        return $this->render('conducteur/voiture_add.html.twig', [
+            'user' => $user,
+            'categories' => $categories,
+            'car' => null // Pass null as the 'car' variable for the layout
+        ]);
+    }
+    
+    #[Route('/voiture/edit', name: 'app_conducteur_voiture_edit')]
+    public function editVoiture(Request $request, EntityManagerInterface $entityManager, CarRepository $carRepository): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this page
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        $user = $this->getUser();
+        
+        // Get the user's car
+        $voiture = $carRepository->findOneBy(['userId' => $user->getId()]);
+        
+        if (!$voiture) {
+            $this->addFlash('error', 'Vous n\'avez pas encore de voiture enregistrée.');
+            return $this->redirectToRoute('app_conducteur_voiture_add');
+        }
+        
+        if ($request->isMethod('POST')) {
+            // Validate input
+            $plaqueImatriculation = $request->request->get('plaqueImatriculation');
+            $marque = $request->request->get('marque');
+            $modele = $request->request->get('modele');
+            $couleur = $request->request->get('couleur');
+            $dateImatriculation = $request->request->get('dateImatriculation');
+            $description = $request->request->get('description');
+            
+            if (!$plaqueImatriculation || !$marque || !$modele || !$couleur || !$dateImatriculation) {
+                $this->addFlash('error', 'Tous les champs marqués * sont obligatoires.');
+                return $this->redirectToRoute('app_conducteur_voiture_edit');
+            }
+            
+            // Update car
+            $voiture->setPlaqueImatriculation($plaqueImatriculation);
+            $voiture->setMarque($marque);
+            $voiture->setModele($modele);
+            $voiture->setCouleur($couleur);
+            $voiture->setDateImatriculation(new \DateTime($dateImatriculation));
+            $voiture->setDescription($description ?? '');
+            
+            $entityManager->flush();
+            
+            $this->addFlash('success', 'Votre voiture a été mise à jour avec succès !');
+            return $this->redirectToRoute('app_conducteur_voiture');
+        }
+        
+        // Get categories for the form
+        $categories = $entityManager->getRepository(\App\Entity\Categorie::class)->findAll();
+        
+        return $this->render('conducteur/voiture_edit.html.twig', [
+            'user' => $user,
+            'voiture' => $voiture,
+            'categories' => $categories,
+            'car' => $voiture // Pass the car data for the layout as well
         ]);
     }
 } 
