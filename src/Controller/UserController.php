@@ -56,6 +56,28 @@ class UserController extends AbstractController
                     'tel' => $request->request->get('tel'),
                 ];
 
+                // Handle profile image upload
+                $profileImage = $request->files->get('profileImage');
+                if ($profileImage) {
+                    // Define upload directory
+                    $uploadsDirectory = $this->getParameter('kernel.project_dir') . '/public/uploads/profile_images';
+                    
+                    // Create directory if it doesn't exist
+                    if (!file_exists($uploadsDirectory)) {
+                        mkdir($uploadsDirectory, 0777, true);
+                    }
+                    
+                    // Generate a unique filename
+                    $originalExtension = $profileImage->getClientOriginalExtension();
+                    $newFilename = uniqid() . '.' . $originalExtension;
+                    
+                    // Move the file to the uploads directory
+                    $profileImage->move($uploadsDirectory, $newFilename);
+                    
+                    // Update the user's image path
+                    $data['image_path'] = 'uploads/profile_images/' . $newFilename;
+                }
+
                 $this->userService->updateUserProfile($user->getId(), $data);
                 
                 $this->addFlash('success', 'Profile updated successfully');

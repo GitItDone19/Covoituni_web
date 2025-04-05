@@ -3,24 +3,12 @@
 {% block stylesheets %}
     {{ parent() }}
     <style>
-        /* Debug information */
-        .debug-info {
-            position: fixed;
-            top: 0;
-            right: 0;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 10px;
-            font-size: 12px;
-            z-index: 9999;
-        }
-        
         /* Offcanvas menu styles */
         .offcanvas-menu {
             position: fixed;
             top: 0;
-            left: -300px;
-            width: 300px;
+            left: -350px;
+            width: 350px;
             height: 100%;
             background: white;
             z-index: 1050;
@@ -55,14 +43,6 @@
 {% endblock %}
 
 {% block body %}
-    {# Debug information #}
-    <div class="debug-info">
-        <strong>Debug Info:</strong><br>
-        Current route: {{ app.request.get('_route') }}<br>
-        Car variable: {% if car is defined %}defined ({{ car ? 'not null' : 'null' }}){% else %}not defined{% endif %}<br>
-        User ID: {{ app.user ? app.user.id : 'not logged in' }}
-    </div>
-
     {# Navbar Menu Button #}
     <div class="fixed top-4 left-4 z-50">
         <button id="menuToggle" class="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg hover:shadow-xl transition-all duration-300">
@@ -96,12 +76,19 @@
                 <div>
                     <p class="font-medium text-gray-900">{{ user.prenom }} {{ user.nom }}</p>
                     <p class="text-sm text-gray-500">{{ user.email }}</p>
-                    <p class="text-xs text-yellow-500 flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-                        </svg>
-                        {{ user.rating ?? 'N/A' }} ({{ user.tripsCount ?? '0' }} trips)
-                    </p>
+                    {% if is_granted('ROLE_ADMIN') %}
+                        <p class="text-xs font-medium text-indigo-600">Administrateur</p>
+                    {% elseif is_granted('ROLE_CONDUCTEUR') %}
+                        <p class="text-xs font-medium text-primary">Conducteur</p>
+                        <p class="text-xs text-yellow-500 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                            </svg>
+                            {{ user.rating ?? 'N/A' }} ({{ user.tripsCount ?? '0' }} trips)
+                        </p>
+                    {% elseif is_granted('ROLE_PASSAGER') %}
+                        <p class="text-xs font-medium text-blue-600">Passager</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
