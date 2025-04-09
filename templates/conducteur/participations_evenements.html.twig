@@ -1,0 +1,114 @@
+{% extends 'layouts/user_layout.html.twig' %}
+
+{% block title %}Mes Participations aux Événements{% endblock %}
+
+{% block content %}
+    <div class="w-full">
+        <div class="glass-card bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-xl p-8 mb-8">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold mb-2 text-gray-800">Mes participations aux événements</h1>
+                    <p class="text-gray-600">Consultez les événements auxquels vous êtes inscrit ou pour lesquels vous êtes conducteur.</p>
+                </div>
+            </div>
+
+            {% if participations is empty %}
+                <div class="bg-gray-50 rounded-xl p-8 text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h3 class="mt-4 text-xl font-medium text-gray-900">Aucune participation</h3>
+                    <p class="mt-2 text-gray-600">Vous n'êtes inscrit à aucun événement pour le moment.</p>
+                    <a href="{{ path('app_conducteur_events') }}" class="mt-4 inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition duration-300">
+                        <i class="fas fa-calendar-alt mr-2"></i>
+                        Voir les événements
+                    </a>
+                </div>
+            {% else %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for item in participations %}
+                        <div class="bg-white rounded-xl shadow-md overflow-hidden {% if item.role == 'conducteur' %}border-2 border-green-500{% endif %}">
+                            <div class="p-6">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h3 class="font-bold text-xl text-gray-900">{{ item.event.nom }}</h3>
+                                        <p class="text-gray-600">{{ item.event.typeEvent.nom }}</p>
+                                    </div>
+                                    {% if item.role == 'conducteur' %}
+                                        <span class="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">Conducteur</span>
+                                    {% else %}
+                                        <span class="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">Participant</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mt-4 space-y-2">
+                                    <div class="flex items-start">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        <span class="text-gray-700">{{ item.event.lieu }}</span>
+                                    </div>
+                                    <div class="flex items-start">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        <span class="text-gray-700">{{ item.event.dateEvent|date('d/m/Y') }} à {{ item.event.heureEvent|date('H:i') }}</span>
+                                    </div>
+                                    <div class="flex items-start">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span class="text-gray-700">Inscrit le {{ item.dateInscription|date('d/m/Y') }}</span>
+                                    </div>
+                                    {% if item.auteur %}
+                                    <div class="flex items-start">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                        <span class="text-gray-700">{{ item.auteur }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if item.role == 'participant' and item.conducteur %}
+                                    <div class="flex items-start">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                        </svg>
+                                        <span class="text-gray-700">Conducteur: {{ item.conducteur.prenom }} {{ item.conducteur.nom }}</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if item.event.description %}
+                                    <div class="mt-4">
+                                        <p class="text-sm text-gray-600">{{ item.event.description|length > 100 ? item.event.description|slice(0, 100) ~ '...' : item.event.description }}</p>
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="mt-4 flex flex-wrap justify-end space-x-2">
+                                    <a href="{{ path('app_conducteur_event_participants', {'id': item.event.idEvent}) }}" class="inline-flex items-center px-3 py-1.5 bg-green-100 text-green-800 text-xs font-medium rounded-lg hover:bg-green-200 transition-colors duration-300">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                        </svg>
+                                        Voir participants
+                                    </a>
+                                    
+                                    {% if item.role == 'participant' %}
+                                    <form action="{{ path('app_passager_event_annuler_participation', {'id': item.event.idEvent}) }}" method="POST" class="inline" onsubmit="return confirm('Êtes-vous sûr de vouloir annuler votre participation à cet événement ?');">
+                                        <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-800 text-xs font-medium rounded-lg hover:bg-red-200 transition-colors duration-300">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                            Annuler
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %} 
