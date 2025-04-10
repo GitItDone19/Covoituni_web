@@ -136,7 +136,7 @@ class ConducteurController extends AbstractController
     }
     
     #[Route('/reservations', name: 'app_conducteur_reservations')]
-    public function reservations(EntityManagerInterface $entityManager): Response
+    public function reservations(EntityManagerInterface $entityManager, UtilisateurRepository $utilisateurRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -152,11 +152,56 @@ class ConducteurController extends AbstractController
         
         // Pour chaque annonce, récupérer ses réservations
         foreach ($annonces as $annonce) {
+            $reservations = $entityManager->getRepository(Reservation::class)
+                ->findBy(['annonce' => $annonce], ['dateReservation' => 'DESC']);
+            
+            // Enrichir chaque réservation avec les données utilisateur
+            foreach ($reservations as $key => $reservation) {
+                $userId = $reservation->getUserId();
+                if ($userId) {
+                    $passager = $utilisateurRepository->find($userId);
+                    if ($passager) {
+                        // Ajouter les informations utilisateur à la réservation
+                        $reservations[$key]->passager = $passager;
+                    }
+                }
+            }
+            
             $reservationsByAnnonce[$annonce->getId()] = [
                 'annonce' => $annonce,
-                'reservations' => $entityManager->getRepository(Reservation::class)
-                    ->findBy(['annonce' => $annonce], ['dateReservation' => 'DESC'])
+                'reservations' => $reservations
             ];
+        }
+        
+        // Récupérer les annonces d'événements du conducteur
+        $annoncesEvent = $entityManager->getRepository(AnnonceEvent::class)
+            ->findByDriver($user->getId());
+        
+        // Pour chaque annonce d'événement, récupérer ses réservations
+        foreach ($annoncesEvent as $annonceEvent) {
+            $reservations = $entityManager->getRepository(Reservation::class)
+                ->findBy(['annonceEvent' => $annonceEvent->getId(), 'type' => 'EVENT'], ['dateReservation' => 'DESC']);
+            
+            // Enrichir chaque réservation avec les données utilisateur
+            foreach ($reservations as $key => $reservation) {
+                $userId = $reservation->getUserId();
+                if ($userId) {
+                    $passager = $utilisateurRepository->find($userId);
+                    if ($passager) {
+                        // Ajouter les informations utilisateur à la réservation
+                        $reservations[$key]->passager = $passager;
+                    }
+                }
+            }
+            
+            // Ajouter seulement si des réservations existent
+            if (count($reservations) > 0) {
+                $reservationsByAnnonce['event_' . $annonceEvent->getId()] = [
+                    'annonce' => $annonceEvent,
+                    'reservations' => $reservations,
+                    'type' => 'EVENT'
+                ];
+            }
         }
         
         return $this->render('conducteur/reservations.html.twig', [
@@ -948,7 +993,7 @@ class ConducteurController extends AbstractController
     }
 
     #[Route('/conducteur/reservations-event', name: 'app_conducteur_reservations_event')]
-    public function reservationsEvent(ReservationRepository $reservationRepository, AnnonceEventRepository $annonceEventRepository): Response
+    public function reservationsEvent(ReservationRepository $reservationRepository, AnnonceEventRepository $annonceEventRepository, UtilisateurRepository $utilisateurRepository): Response
     {
         $user = $this->getUser();
         $annonces = $annonceEventRepository->findByDriver($user->getId());
@@ -960,6 +1005,18 @@ class ConducteurController extends AbstractController
                 'annonceEvent' => $annonce->getId(),
                 'type' => 'EVENT'
             ]);
+            
+            // Enrichir chaque réservation avec les données utilisateur
+            foreach ($reservations as $key => $reservation) {
+                $userId = $reservation->getUserId();
+                if ($userId) {
+                    $passager = $utilisateurRepository->find($userId);
+                    if ($passager) {
+                        // Ajouter les informations utilisateur à la réservation
+                        $reservations[$key]->passager = $passager;
+                    }
+                }
+            }
             
             if (count($reservations) > 0) {
                 $reservationsByAnnonce[$annonce->getId()] = [
@@ -1011,115 +1068,70 @@ class ConducteurController extends AbstractController
         return $this->redirectToRoute('app_conducteur_event_annonces', ['id' => $id]);
     }
 
-    // Méthodes pour gérer les réservations d'événements
+    #[Route('/conducteur/reservation/{id}/accepter-event', name: 'app_conducteur_accepter_reservation_event', methods: ['POST'])]
+    public function accepterReservationEvent(Request $request, int $id): Response
+    {
+        $entityManager = $this->getDoctrine()->getManager();
+        $reservation = $entityManager->getRepository(Reservation::class)->find($id);
 
-    #[Route('/conducteur/reservation-event/{id}/accepter', name: 'app_conducteur_accepter_reservation_event', methods: ['POST'])]
-    public function accepterReservationEvent(int $id, ReservationRepository $reservationRepository, EntityManagerInterface $entityManager): Response
-    {
-        $reservation = $reservationRepository->find($id);
-        
         if (!$reservation) {
-            throw $this->createNotFoundException('Réservation non trouvée');
+            $this->addFlash('error', 'Réservation non trouvée');
+            return $this->redirectToRoute('app_conducteur_reservations');
         }
-        
-        // Vérifier que la réservation concerne un événement
-        if ($reservation->getType() !== 'EVENT') {
-            throw $this->createAccessDeniedException('Cette réservation n\'est pas liée à un événement');
+
+        // Vérifier que la réservation est bien pour un événement
+        $annonceEvent = $entityManager->getRepository(AnnonceEvent::class)->find($reservation->getAnnonceEventId());
+        if (!$annonceEvent) {
+            $this->addFlash('error', 'Annonce d\'événement non trouvée');
+            return $this->redirectToRoute('app_conducteur_reservations');
         }
-        
-        // Vérifier que l'utilisateur actuel est bien le conducteur de l'annonce
+
+        // Vérifier que l'utilisateur connecté est bien le conducteur de l'événement
         $user = $this->getUser();
-        $annonceEvent = $reservation->getAnnonceEvent();
-        
-        if (!$annonceEvent || $annonceEvent->getDriverId() !== $user->getId()) {
-            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à gérer cette réservation');
+        if ($annonceEvent->getDriverId() !== $user->getId()) {
+            $this->addFlash('error', 'Vous n\'êtes pas autorisé à gérer cette réservation');
+            return $this->redirectToRoute('app_conducteur_reservations');
         }
-        
-        // Mettre à jour le statut de la réservation
+
+        // Accepter la réservation
         $reservation->setStatus('ACCEPTED');
-        $reservation->setUpdatedAt(new \DateTime());
-        
-        // Récupérer l'utilisateur qui a fait la réservation
-        $passager = $entityManager->getRepository(\App\Entity\Utilisateur::class)->find($reservation->getUserId());
-        $event = $annonceEvent->getEvent();
-        
-        // Vérification des entités nécessaires
-        if (!$passager) {
-            $this->addFlash('error', 'Utilisateur passager non trouvé (ID: ' . $reservation->getUserId() . ')');
-            return $this->redirectToRoute('app_conducteur_reservations_event');
-        }
-        
-        if (!$event) {
-            $this->addFlash('error', 'Événement non trouvé (ID: ' . ($annonceEvent->getEvent() ? $annonceEvent->getEvent()->getIdEvent() : 'null') . ')');
-            return $this->redirectToRoute('app_conducteur_reservations_event');
-        }
-        
-        // Vérifier si l'utilisateur participe déjà à l'événement
-        $existingParticipation = $entityManager->getRepository(\App\Entity\EventParticipation::class)->findOneBy([
-            'event' => $event,
-            'utilisateur' => $passager
-        ]);
-        
-        // Si l'utilisateur ne participe pas encore à l'événement, l'ajouter
-        if (!$existingParticipation) {
-            $participation = new \App\Entity\EventParticipation();
-            $participation->setEvent($event);
-            $participation->setUtilisateur($passager);
-            $participation->setDateInscription(new \DateTime());
-            $participation->setAuteur('Réservation acceptée via covoiturage');
-            
-            // Utiliser l'utilisateur connecté comme conducteur (plus fiable)
-            $participation->setConducteur($user);
-            
-            $entityManager->persist($participation);
-            $this->addFlash('success', 'Participation à l\'événement créée avec succès');
-        } else {
-            $this->addFlash('info', 'L\'utilisateur participe déjà à cet événement');
-        }
-        
         $entityManager->flush();
-        
-        return $this->redirectToRoute('app_conducteur_reservations_event');
+
+        $this->addFlash('success', 'Réservation acceptée avec succès');
+        return $this->redirectToRoute('app_conducteur_reservations');
     }
-    
-    #[Route('/conducteur/reservation-event/{id}/refuser', name: 'app_conducteur_refuser_reservation_event', methods: ['POST'])]
-    public function refuserReservationEvent(int $id, ReservationRepository $reservationRepository, EntityManagerInterface $entityManager): Response
+
+    #[Route('/conducteur/reservation/{id}/refuser-event', name: 'app_conducteur_refuser_reservation_event', methods: ['POST'])]
+    public function refuserReservationEvent(Request $request, int $id): Response
     {
-        $reservation = $reservationRepository->find($id);
-        
+        $entityManager = $this->getDoctrine()->getManager();
+        $reservation = $entityManager->getRepository(Reservation::class)->find($id);
+
         if (!$reservation) {
-            throw $this->createNotFoundException('Réservation non trouvée');
+            $this->addFlash('error', 'Réservation non trouvée');
+            return $this->redirectToRoute('app_conducteur_reservations');
         }
-        
-        // Vérifier que la réservation concerne un événement
-        if ($reservation->getType() !== 'EVENT') {
-            throw $this->createAccessDeniedException('Cette réservation n\'est pas liée à un événement');
+
+        // Vérifier que la réservation est bien pour un événement
+        $annonceEvent = $entityManager->getRepository(AnnonceEvent::class)->find($reservation->getAnnonceEventId());
+        if (!$annonceEvent) {
+            $this->addFlash('error', 'Annonce d\'événement non trouvée');
+            return $this->redirectToRoute('app_conducteur_reservations');
         }
-        
-        // Vérifier que l'utilisateur actuel est bien le conducteur de l'annonce
+
+        // Vérifier que l'utilisateur connecté est bien le conducteur de l'événement
         $user = $this->getUser();
-        $annonceEvent = $reservation->getAnnonceEvent();
-        
-        if (!$annonceEvent || $annonceEvent->getDriverId() !== $user->getId()) {
-            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à gérer cette réservation');
+        if ($annonceEvent->getDriverId() !== $user->getId()) {
+            $this->addFlash('error', 'Vous n\'êtes pas autorisé à gérer cette réservation');
+            return $this->redirectToRoute('app_conducteur_reservations');
         }
-        
-        // Mettre à jour le statut de la réservation
+
+        // Refuser la réservation
         $reservation->setStatus('REJECTED');
-        $reservation->setUpdatedAt(new \DateTime());
-        
-        // Augmenter le nombre de places disponibles dans l'annonce
-        $annonceEvent->setAvailableSeats($annonceEvent->getAvailableSeats() + 1);
-        
-        // Si l'annonce était pleine, la remettre à "ouvert"
-        if ($annonceEvent->getStatus() === 'plein') {
-            $annonceEvent->setStatus('ouvert');
-        }
-        
         $entityManager->flush();
-        
-        $this->addFlash('success', 'Réservation refusée avec succès !');
-        return $this->redirectToRoute('app_conducteur_reservations_event');
+
+        $this->addFlash('success', 'Réservation refusée avec succès');
+        return $this->redirectToRoute('app_conducteur_reservations');
     }
 
     #[Route('/conducteur/participations-parraines', name: 'app_conducteur_participations_parraines')]

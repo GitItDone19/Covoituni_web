@@ -109,11 +109,15 @@
                                                 <td class="px-6 py-4 whitespace-nowrap">
                                                     <div class="flex items-center">
                                                         <div class="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-bold">
-                                                            P
+                                                            {{ reservation.passager is defined ? reservation.passager.prenom|first|upper : 'P' }}
                                                         </div>
                                                         <div class="ml-3">
                                                             <div class="text-sm font-medium text-gray-900">
-                                                                Passager #{{ reservation.userId }}
+                                                                {% if reservation.passager is defined %}
+                                                                    {{ reservation.passager.prenom }} {{ reservation.passager.nom }}
+                                                                {% else %}
+                                                                    Passager #{{ reservation.userId }}
+                                                                {% endif %}
                                                             </div>
                                                         </div>
                                                     </div>
