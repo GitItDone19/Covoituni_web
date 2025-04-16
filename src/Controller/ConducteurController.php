@@ -25,6 +25,9 @@ use App\Repository\TypeEventRepository;
 use App\Repository\AnnonceEventRepository;
 use App\Repository\CarRepository;
 use App\Repository\EventParticipationRepository;
+use App\Entity\Reclamation;
+use App\Service\NotificationService;
+use App\Repository\ReclamationRepository;
 
 #[Route('/conducteur')]
 class ConducteurController extends AbstractController
@@ -77,6 +80,57 @@ class ConducteurController extends AbstractController
         
         return $this->render('conducteur/reclamation.html.twig', [
             'user' => $user,
+            'car' => $this->getCarData($carRepository)
+        ]);
+    }
+    
+    #[Route('/reclamation/submit', name: 'app_conducteur_reclamation_submit', methods: ['POST'])]
+    public function submitReclamation(Request $request, EntityManagerInterface $entityManager, NotificationService $notificationService): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        $subject = $request->request->get('subject');
+        $description = $request->request->get('description');
+        
+        // Validation
+        if (!$subject || !$description) {
+            $this->addFlash('error', 'Tous les champs sont obligatoires');
+            return $this->redirectToRoute('app_conducteur_reclamation');
+        }
+        
+        // Create new reclamation
+        $reclamation = new Reclamation();
+        $reclamation->setUser($this->getUser());
+        $reclamation->setSubject($subject);
+        $reclamation->setDescription($description);
+        $reclamation->setDate(new \DateTime());
+        $reclamation->setStatus('pending');
+        
+        $entityManager->persist($reclamation);
+        $entityManager->flush();
+        
+        // Notify admins about the new reclamation
+        $notificationService->notifyAdminNewReclamation($reclamation);
+        
+        $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
+        
+        // Redirect to a page showing the user's reclamations
+        return $this->redirectToRoute('app_conducteur_mes_reclamations');
+    }
+    
+    #[Route('/mes-reclamations', name: 'app_conducteur_mes_reclamations')]
+    public function mesReclamations(ReclamationRepository $reclamationRepository, CarRepository $carRepository): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this page
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        $user = $this->getUser();
+        $reclamations = $reclamationRepository->findBy(['user' => $user], ['date' => 'DESC']);
+        
+        return $this->render('conducteur/mes_reclamations.html.twig', [
+            'user' => $user,
+            'reclamations' => $reclamations,
             'car' => $this->getCarData($carRepository)
         ]);
     }
