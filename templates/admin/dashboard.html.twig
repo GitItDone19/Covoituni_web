@@ -569,38 +569,11 @@
                                         <p class="text-xs text-{{ alert.color }}-600 mt-1">{{ alert.message }}</p>
                                     </div>
                                 </div>
-                                <span>Utilisateur {{ i }}</span>
-                            </div>
-                        </td>
-                        <td class="px-4 py-3">
-                            {% if i == 1 %}
-                                A créé un nouveau trajet
-                            {% elseif i == 2 %}
-                                A réservé un trajet
-                            {% elseif i == 3 %}
-                                A laissé un avis
-                            {% elseif i == 4 %}
-                                A soumis une réclamation
-                            {% else %}
-                                S'est inscrit
-                            {% endif %}
-                        </td>
-                        <td class="px-4 py-3 text-gray-500">Il y a {{ i * 2 }} heures</td>
-                        <td class="px-4 py-3">
-                            {% if i == 1 or i == 5 %}
-                                <span class="admin-badge admin-badge-green">Complété</span>
-                            {% elseif i == 2 %}
-                                <span class="admin-badge admin-badge-blue">En cours</span>
-                            {% elseif i == 3 %}
-                                <span class="admin-badge admin-badge-purple">Vérifié</span>
-                            {% else %}
-                                <span class="admin-badge admin-badge-yellow">En attente</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -756,4 +729,6 @@
         });
     });
 </script>
+{% if stats.alerts|length > 0 %}
+{% endif %}
 {% endblock %} 
