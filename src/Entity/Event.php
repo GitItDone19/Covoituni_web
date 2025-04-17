@@ -13,7 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
 class Event
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue]
+    #[ORM\GeneratedValue(strategy: "IDENTITY")]
     #[ORM\Column(name: 'id_event', type: 'integer')]
     private ?int $idEvent = null;
 

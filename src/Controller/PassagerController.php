@@ -618,6 +618,27 @@ class PassagerController extends AbstractController
         if ($request->isMethod('POST')) {
             $comment = $request->request->get('comment');
             
+            // Liste des mots inappropriés à vérifier
+            $inappropriateWords = ['fuck', 'fuck you', 'bitch', 'asshole', 'shit', 'pute', 'connard', 'putain', 'merde'];
+            
+            // Vérifier si le commentaire contient des mots inappropriés
+            $containsInappropriateWord = false;
+            foreach ($inappropriateWords as $word) {
+                if (stripos($comment, $word) !== false) {
+                    $containsInappropriateWord = true;
+                    break;
+                }
+            }
+            
+            // Si le commentaire contient des mots inappropriés, afficher une erreur
+            if ($containsInappropriateWord) {
+                $this->addFlash('error', 'Votre commentaire contient des termes inappropriés. Veuillez utiliser un langage respectueux.');
+                return $this->render('passager/create_reservation.html.twig', [
+                    'annonce' => $annonce,
+                    'user' => $user
+                ]);
+            }
+            
             // Créer une nouvelle réservation
             $reservation = new Reservation();
             $reservation->setAnnonce($annonce);

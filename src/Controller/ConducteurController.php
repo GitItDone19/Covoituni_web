@@ -267,20 +267,27 @@ class ConducteurController extends AbstractController
     #[Route('/accepter-reservation/{id}', name: 'app_conducteur_accepter_reservation', methods: ['POST'])]
     public function accepterReservation(Reservation $reservation, EntityManagerInterface $entityManager): Response
     {
-        // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
+        // Vérifier que l'utilisateur est bien ROLE_CONDUCTEUR
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
         
         $user = $this->getUser();
-        $annonce = $reservation->getAnnonce();
         
-        // Vérifier que l'utilisateur est bien le conducteur de cette annonce
-        if (!$annonce || $annonce->getDriverId() !== $user->getId()) {
-            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à gérer cette réservation.');
+        // Vérifier que l'annonce associée à la réservation appartient bien au conducteur
+        $annonce = $reservation->getAnnonce();
+        if (!$annonce || $annonce->getDriverId() != $user->getId()) {
+            $this->addFlash('error', 'Vous n\'êtes pas autorisé à accepter cette réservation.');
+            return $this->redirectToRoute('app_conducteur_reservations');
         }
         
-        // Vérifier que la réservation est en attente
-        if ($reservation->getStatus() !== 'PENDING') {
-            $this->addFlash('error', 'Cette réservation ne peut plus être acceptée.');
+        // Si la réservation est déjà acceptée, ne rien faire
+        if ($reservation->getStatus() === 'ACCEPTED') {
+            $this->addFlash('info', 'Cette réservation est déjà acceptée.');
+            return $this->redirectToRoute('app_conducteur_reservations');
+        }
+        
+        // Vérifier s'il reste des places disponibles
+        if ($annonce->getAvailableSeats() <= 0) {
+            $this->addFlash('error', 'Vous n\'avez plus de places disponibles pour cette annonce.');
             return $this->redirectToRoute('app_conducteur_reservations');
         }
         
@@ -288,9 +295,17 @@ class ConducteurController extends AbstractController
         $reservation->setStatus('ACCEPTED');
         $reservation->setUpdatedAt(new \DateTime());
         
+        // Décrémenter le nombre de places disponibles
+        $annonce->setAvailableSeats($annonce->getAvailableSeats() - 1);
+        
+        // Si plus de places disponibles, mettre l'annonce en "plein"
+        if ($annonce->getAvailableSeats() <= 0) {
+            $annonce->setStatus('plein');
+        }
+        
         $entityManager->flush();
         
-        $this->addFlash('success', 'La réservation a été acceptée avec succès.');
+        $this->addFlash('success', 'Réservation acceptée avec succès ! <a href="' . $this->generateUrl('app_chat_conversation', ['reservationId' => $reservation->getId(), 'type' => 'TRAJET']) . '" class="text-primary hover:underline">Cliquez ici pour discuter avec le passager</a>');
         
         return $this->redirectToRoute('app_conducteur_reservations');
     }
@@ -455,6 +470,40 @@ class ConducteurController extends AbstractController
         
         $user = $this->getUser();
         $trajetId = $request->request->get('trajet_id');
+        $titre = $request->request->get('titre');
+        $description = $request->request->get('description');
+        $departureDate = $request->request->get('departure_date');
+        
+        // Validation du titre: maximum 25 caractères alphanumériques
+        if (strlen($titre) > 25) {
+            $this->addFlash('error', 'Le titre ne doit pas dépasser 25 caractères.');
+            return $this->redirectToRoute('app_conducteur_ajouter_annonce');
+        }
+        
+        // Vérifier que le titre ne contient que des caractères alphanumériques et des espaces
+        if (!preg_match('/^[a-zA-Z0-9\s\-àáâäãåąčćęèéêëėįìíîïłńòóôöõøùúûüųūÿýżźñçšžÀÁÂÄÃÅĄĆČĖĘÈÉÊËÌÍÎÏĮŁŃÒÓÔÖÕØÙÚÛÜŲŪŸÝŻŹÑßÇŒÆŠŽ,.\']+$/', $titre)) {
+            $this->addFlash('error', 'Le titre ne doit contenir que des caractères alphanumériques.');
+            return $this->redirectToRoute('app_conducteur_ajouter_annonce');
+        }
+        
+        // Validation de la date: doit être dans le futur
+        $dateObj = new \DateTime($departureDate);
+        $now = new \DateTime();
+        if ($dateObj < $now) {
+            $this->addFlash('error', 'La date de départ ne peut pas être dans le passé.');
+            return $this->redirectToRoute('app_conducteur_ajouter_annonce');
+        }
+        
+        // Validation du contenu: pas de mots inappropriés dans la description
+        if (!empty($description)) {
+            $inappropriateWords = ['fuck', 'fuck you', 'bitch', 'asshole', 'shit', 'pute', 'connard', 'putain', 'merde'];
+            foreach ($inappropriateWords as $word) {
+                if (stripos($description, $word) !== false) {
+                    $this->addFlash('error', 'La description contient des termes inappropriés. Veuillez utiliser un langage respectueux.');
+                    return $this->redirectToRoute('app_conducteur_ajouter_annonce');
+                }
+            }
+        }
         
         // Récupérer le trajet sélectionné
         $trajet = $trajetRepository->find($trajetId);
@@ -465,15 +514,15 @@ class ConducteurController extends AbstractController
         }
         
         $annonce = new Annonce();
-        $annonce->setTitre($request->request->get('titre'));
-        $annonce->setDescription($request->request->get('description'));
+        $annonce->setTitre($titre);
+        $annonce->setDescription($description);
         $annonce->setTrajet($trajet);
         $annonce->setDriverId($user->getId());
         $annonce->setCarId(1); // Valeur par défaut, à ajuster selon votre modèle
         $annonce->setAvailableSeats((int)$request->request->get('available_seats'));
         $annonce->setStatus('ouvert');
         $annonce->setDatePublication(new \DateTime());
-        $annonce->setDepartureDate(new \DateTime($request->request->get('departure_date')));
+        $annonce->setDepartureDate($dateObj);
         
         $entityManager->persist($annonce);
         $entityManager->flush();
@@ -550,6 +599,41 @@ class ConducteurController extends AbstractController
         }
         
         $trajetId = $request->request->get('trajet_id');
+        $titre = $request->request->get('titre');
+        $description = $request->request->get('description');
+        $departureDate = $request->request->get('departure_date');
+        
+        // Validation du titre: maximum 25 caractères alphanumériques
+        if (strlen($titre) > 25) {
+            $this->addFlash('error', 'Le titre ne doit pas dépasser 25 caractères.');
+            return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
+        }
+        
+        // Vérifier que le titre ne contient que des caractères alphanumériques et des espaces
+        if (!preg_match('/^[a-zA-Z0-9\s\-àáâäãåąčćęèéêëėįìíîïłńòóôöõøùúûüųūÿýżźñçšžÀÁÂÄÃÅĄĆČĖĘÈÉÊËÌÍÎÏĮŁŃÒÓÔÖÕØÙÚÛÜŲŪŸÝŻŹÑßÇŒÆŠŽ,.\']+$/', $titre)) {
+            $this->addFlash('error', 'Le titre ne doit contenir que des caractères alphanumériques.');
+            return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
+        }
+        
+        // Validation de la date: doit être dans le futur
+        $dateObj = new \DateTime($departureDate);
+        $now = new \DateTime();
+        if ($dateObj < $now) {
+            $this->addFlash('error', 'La date de départ ne peut pas être dans le passé.');
+            return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
+        }
+        
+        // Validation du contenu: pas de mots inappropriés dans la description
+        if (!empty($description)) {
+            $inappropriateWords = ['fuck', 'fuck you', 'bitch', 'asshole', 'shit', 'pute', 'connard', 'putain', 'merde'];
+            foreach ($inappropriateWords as $word) {
+                if (stripos($description, $word) !== false) {
+                    $this->addFlash('error', 'La description contient des termes inappropriés. Veuillez utiliser un langage respectueux.');
+                    return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
+                }
+            }
+        }
+        
         $trajet = $trajetRepository->find($trajetId);
         
         if (!$trajet) {
@@ -557,11 +641,11 @@ class ConducteurController extends AbstractController
             return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
         }
         
-        $annonce->setTitre($request->request->get('titre'));
-        $annonce->setDescription($request->request->get('description'));
+        $annonce->setTitre($titre);
+        $annonce->setDescription($description);
         $annonce->setTrajet($trajet);
         $annonce->setAvailableSeats((int)$request->request->get('available_seats'));
-        $annonce->setDepartureDate(new \DateTime($request->request->get('departure_date')));
+        $annonce->setDepartureDate($dateObj);
         
         $entityManager->flush();
         
@@ -832,22 +916,8 @@ class ConducteurController extends AbstractController
                 return $this->redirectToRoute('app_conducteur_event_annonce_create', ['id' => $id]);
             }
             
-            // Créer une nouvelle annonce d'événement
-            $annonceEvent = new AnnonceEvent();
-            $annonceEvent->setTitre($titre);
-            $annonceEvent->setDescription($description ?? '');
-            
             // Fusionner la date et l'heure de départ
             $dateTime = new \DateTime($departureDate . ' ' . $departureTime);
-            $annonceEvent->setDepartureDate($dateTime);
-            
-            $annonceEvent->setStatus('ouvert');
-            $annonceEvent->setAvailableSeats((int)$availableSeats);
-            $annonceEvent->setDriverId($user->getId());
-            $annonceEvent->setEvent($event);
-            $annonceEvent->setDeparturePoint($departurePoint);
-            $annonceEvent->setArrivalPoint($arrivalPoint);
-            $annonceEvent->setPrix((float)$prix);
             
             $voiture = $carRepository->find($voitureId);
             if (!$voiture) {
@@ -855,13 +925,50 @@ class ConducteurController extends AbstractController
                 return $this->redirectToRoute('app_conducteur_event_annonce_create', ['id' => $id]);
             }
             
-            $annonceEvent->setCarId($voiture->getId());
-            
-            $entityManager->persist($annonceEvent);
-            $entityManager->flush();
-            
-            $this->addFlash('success', 'Annonce pour l\'événement créée avec succès !');
-            return $this->redirectToRoute('app_conducteur_event_annonces', ['id' => $id]);
+            // Utiliser PDO directement pour plus de contrôle
+            try {
+                $conn = $entityManager->getConnection();
+                
+                // Récupérer le dernier ID
+                $sql = "SELECT MAX(id) as max_id FROM annonce_event";
+                $stmt = $conn->prepare($sql);
+                $result = $stmt->executeQuery();
+                $maxId = $result->fetchOne();
+                
+                // Si aucun ID n'existe encore, commencer à 100
+                $nextId = ($maxId && $maxId > 0) ? $maxId + 1 : 100;
+                
+                // Insérer l'annonce avec un ID explicite
+                $sql = "INSERT INTO annonce_event 
+                       (id, titre, description, departure_date, date_publication, driver_id, car_id, status, 
+                        available_seats, event_id, departure_point, arrival_point, prix) 
+                       VALUES 
+                       (:id, :titre, :description, :departure_date, :date_publication, :driver_id, :car_id, :status, 
+                        :available_seats, :event_id, :departure_point, :arrival_point, :prix)";
+                
+                $stmt = $conn->prepare($sql);
+                $stmt->bindValue('id', $nextId);
+                $stmt->bindValue('titre', $titre);
+                $stmt->bindValue('description', $description ?? '');
+                $stmt->bindValue('departure_date', $dateTime->format('Y-m-d H:i:s'));
+                $stmt->bindValue('date_publication', (new \DateTime())->format('Y-m-d H:i:s'));
+                $stmt->bindValue('driver_id', $user->getId());
+                $stmt->bindValue('car_id', $voiture->getId());
+                $stmt->bindValue('status', 'ouvert');
+                $stmt->bindValue('available_seats', (int)$availableSeats);
+                $stmt->bindValue('event_id', $event->getIdEvent());
+                $stmt->bindValue('departure_point', $departurePoint);
+                $stmt->bindValue('arrival_point', $arrivalPoint);
+                $stmt->bindValue('prix', (float)$prix);
+                
+                $stmt->executeStatement();
+                
+                $this->addFlash('success', 'Annonce pour l\'événement créée avec succès ! (ID: ' . $nextId . ')');
+                return $this->redirectToRoute('app_conducteur_event_annonces', ['id' => $id]);
+            } catch (\Exception $e) {
+                $this->addFlash('error', 'Erreur lors de la création de l\'annonce: ' . $e->getMessage());
+                return $this->redirectToRoute('app_conducteur_event_annonce_create', ['id' => $id]);
+            }
         }
         
         return $this->render('conducteur/event_annonce_create.html.twig', [
@@ -1122,44 +1229,81 @@ class ConducteurController extends AbstractController
         return $this->redirectToRoute('app_conducteur_event_annonces', ['id' => $id]);
     }
 
-    #[Route('/conducteur/reservation/{id}/accepter-event', name: 'app_conducteur_accepter_reservation_event', methods: ['POST'])]
-    public function accepterReservationEvent(Request $request, int $id): Response
-    {
-        $entityManager = $this->getDoctrine()->getManager();
-        $reservation = $entityManager->getRepository(Reservation::class)->find($id);
-
-        if (!$reservation) {
-            $this->addFlash('error', 'Réservation non trouvée');
-            return $this->redirectToRoute('app_conducteur_reservations');
-        }
-
-        // Vérifier que la réservation est bien pour un événement
-        $annonceEvent = $entityManager->getRepository(AnnonceEvent::class)->find($reservation->getAnnonceEventId());
-        if (!$annonceEvent) {
-            $this->addFlash('error', 'Annonce d\'événement non trouvée');
-            return $this->redirectToRoute('app_conducteur_reservations');
-        }
-
-        // Vérifier que l'utilisateur connecté est bien le conducteur de l'événement
+    #[Route('/accepter-reservation-event/{id}', name: 'app_conducteur_accepter_reservation_event', methods: ['POST'])]
+    public function accepterReservationEvent(
+        Request $request, 
+        int $id, 
+        EntityManagerInterface $entityManager,
+        ReservationRepository $reservationRepository,
+        AnnonceEventRepository $annonceRepository
+    ): Response {
+        // Vérifier que l'utilisateur est bien ROLE_CONDUCTEUR
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
         $user = $this->getUser();
-        if ($annonceEvent->getDriverId() !== $user->getId()) {
-            $this->addFlash('error', 'Vous n\'êtes pas autorisé à gérer cette réservation');
-            return $this->redirectToRoute('app_conducteur_reservations');
+        
+        // Récupérer la réservation
+        $reservation = $reservationRepository->find($id);
+        
+        if (!$reservation) {
+            throw $this->createNotFoundException('Réservation non trouvée');
         }
-
-        // Accepter la réservation
-        $reservation->setStatus('ACCEPTED');
-        $entityManager->flush();
-
-        $this->addFlash('success', 'Réservation acceptée avec succès');
-        return $this->redirectToRoute('app_conducteur_reservations');
+        
+        // Récupérer l'annonce associée
+        $annonceEvent = $reservation->getAnnonceEvent();
+        
+        // Vérifier que l'utilisateur est bien le conducteur de cette annonce
+        if (!$annonceEvent || $annonceEvent->getDriverId() != $user->getId()) {
+            $this->addFlash('error', 'Vous n\'êtes pas autorisé à accepter cette réservation.');
+            return $this->redirectToRoute('app_conducteur_reservations_event');
+        }
+        
+        // Si la réservation est déjà acceptée, ne rien faire
+        if ($reservation->getStatus() === 'ACCEPTED') {
+            $this->addFlash('info', 'Cette réservation est déjà acceptée.');
+            return $this->redirectToRoute('app_conducteur_reservations_event');
+        }
+        
+        // Vérifier s'il reste des places disponibles
+        if ($annonceEvent->getAvailableSeats() <= 0) {
+            $this->addFlash('error', 'Vous n\'avez plus de places disponibles pour cet événement.');
+            return $this->redirectToRoute('app_conducteur_reservations_event');
+        }
+        
+        try {
+            // Accepter la réservation
+            $reservation->setStatus('ACCEPTED');
+            $reservation->setUpdatedAt(new \DateTime());
+            
+            // Décrémenter le nombre de places disponibles
+            $annonceEvent->setAvailableSeats($annonceEvent->getAvailableSeats() - 1);
+            
+            // Ajouter l'utilisateur à l'événement
+            $event = $annonceEvent->getEvent();
+            if ($event) {
+                // Logique pour ajouter l'utilisateur à l'événement
+            }
+            
+            // Si plus de places disponibles, mettre l'annonce en "plein"
+            if ($annonceEvent->getAvailableSeats() <= 0) {
+                $annonceEvent->setStatus('plein');
+            }
+            
+            $entityManager->flush();
+            
+            $this->addFlash('success', 'Réservation acceptée avec succès ! <a href="' . $this->generateUrl('app_chat_conversation', ['reservationId' => $reservation->getId(), 'type' => 'EVENT']) . '" class="text-primary hover:underline">Cliquez ici pour discuter avec le participant</a>');
+            
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'Une erreur est survenue lors de l\'acceptation de la réservation: ' . $e->getMessage());
+        }
+        
+        return $this->redirectToRoute('app_conducteur_reservations_event');
     }
 
     #[Route('/conducteur/reservation/{id}/refuser-event', name: 'app_conducteur_refuser_reservation_event', methods: ['POST'])]
-    public function refuserReservationEvent(Request $request, int $id): Response
+    public function refuserReservationEvent(Request $request, int $id, EntityManagerInterface $entityManager, ReservationRepository $reservationRepository, AnnonceEventRepository $annonceEventRepository): Response
     {
-        $entityManager = $this->getDoctrine()->getManager();
-        $reservation = $entityManager->getRepository(Reservation::class)->find($id);
+        $reservation = $reservationRepository->find($id);
 
         if (!$reservation) {
             $this->addFlash('error', 'Réservation non trouvée');
@@ -1167,7 +1311,7 @@ class ConducteurController extends AbstractController
         }
 
         // Vérifier que la réservation est bien pour un événement
-        $annonceEvent = $entityManager->getRepository(AnnonceEvent::class)->find($reservation->getAnnonceEventId());
+        $annonceEvent = $annonceEventRepository->find($reservation->getAnnonceEvent());
         if (!$annonceEvent) {
             $this->addFlash('error', 'Annonce d\'événement non trouvée');
             return $this->redirectToRoute('app_conducteur_reservations');
@@ -1182,6 +1326,7 @@ class ConducteurController extends AbstractController
 
         // Refuser la réservation
         $reservation->setStatus('REJECTED');
+        $reservation->setUpdatedAt(new \DateTime());
         $entityManager->flush();
 
         $this->addFlash('success', 'Réservation refusée avec succès');
@@ -1216,7 +1361,7 @@ class ConducteurController extends AbstractController
         ]);
     }
 
-    #[Route('/conducteur/participations-evenements', name: 'app_conducteur_participations_evenements')]
+    #[Route('/participations-evenements', name: 'app_conducteur_participations_evenements')]
     public function mesParticipationsEvenements(EventParticipationRepository $participationRepository, EntityManagerInterface $entityManager): Response
     {
         $user = $this->getUser();
@@ -1226,26 +1371,46 @@ class ConducteurController extends AbstractController
         
         // Reformater les données pour l'affichage
         $formattedParticipations = [];
+        $eventIds = []; // Pour garder une trace des événements déjà traités
         
         foreach ($participations as $participation) {
+            if (!$participation->getEvent()) {
+                continue; // Ignorer les participations sans événement
+            }
+            
             $event = $participation->getEvent();
-            $participantId = $participation->getUtilisateur()->getId();
+            $eventId = $event->getIdEvent();
+            
+            // Si nous avons déjà traité cet événement, passons à la participation suivante
+            if (in_array($eventId, $eventIds)) {
+                continue;
+            }
+            
+            // Si l'utilisateur est le participant (inscrit à l'événement)
+            $participantId = $participation->getUtilisateur() ? $participation->getUtilisateur()->getId() : null;
+            
+            // Si l'utilisateur est le conducteur (parrain)
             $conducteurId = $participation->getConducteur() ? $participation->getConducteur()->getId() : null;
             
             // Déterminer le rôle de l'utilisateur pour cette participation
-            $role = 'participant';
+            $role = null;
             $auteur = $participation->getAuteur();
             
-            if ($conducteurId === $user->getId() && $participantId !== $user->getId()) {
-                // L'utilisateur est le conducteur mais pas le participant
+            if ($participantId === $user->getId()) {
+                $role = 'participant';
+            }
+            
+            if ($conducteurId === $user->getId()) {
                 $role = 'conducteur';
                 $auteur = ($auteur ? $auteur : 'Participation') . ' (Vous êtes le conducteur)';
             }
             
-            // Créer une clé unique pour éviter les doublons
-            $key = $event->getIdEvent() . '-' . $participantId;
+            // Si aucun rôle n'est défini, passer à la participation suivante
+            if (!$role) {
+                continue;
+            }
             
-            $formattedParticipations[$key] = [
+            $formattedParticipations[] = [
                 'event' => $event,
                 'dateInscription' => $participation->getDateInscription(),
                 'auteur' => $auteur,
@@ -1253,10 +1418,13 @@ class ConducteurController extends AbstractController
                 'utilisateur' => $participation->getUtilisateur(),
                 'role' => $role
             ];
+            
+            // Marquer cet événement comme traité
+            $eventIds[] = $eventId;
         }
         
         return $this->render('conducteur/participations_evenements.html.twig', [
-            'participations' => array_values($formattedParticipations)
+            'participations' => $formattedParticipations
         ]);
     }
 

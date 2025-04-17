@@ -36,89 +36,97 @@
                 </div>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="min-w-full bg-white rounded-xl overflow-hidden">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="py-3 px-4 text-left text-gray-700 font-semibold">TITRE</th>
-                            <th class="py-3 px-4 text-left text-gray-700 font-semibold">TRAJET</th>
-                            <th class="py-3 px-4 text-left text-gray-700 font-semibold">DATE</th>
-                            <th class="py-3 px-4 text-left text-gray-700 font-semibold">PLACES</th>
-                            <th class="py-3 px-4 text-left text-gray-700 font-semibold">PRIX</th>
-                            <th class="py-3 px-4 text-left text-gray-700 font-semibold">STATUT</th>
-                            <th class="py-3 px-4 text-left text-gray-700 font-semibold">ACTIONS</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if annonces is empty %}
-                            <tr>
-                                <td colspan="6" class="py-8 text-center text-gray-500">
-                                    Aucune annonce trouvée. Réessayez plus tard ou modifiez vos critères de recherche.
-                                </td>
-                            </tr>
-                        {% else %}
-                            {% for annonce in annonces %}
-                                <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                    <td class="py-3 px-4">
-                                        <div class="font-medium text-gray-800">{{ annonce.titre }}</div>
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        <div class="text-gray-700">
-                                            {{ annonce.trajet.getDeparturePoint() }} → {{ annonce.trajet.getArrivalPoint() }}
+            {% if annonces is empty %}
+                <div class="bg-gray-50 rounded-xl p-8 text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h3 class="mt-4 text-xl font-medium text-gray-900">Aucune annonce trouvée</h3>
+                    <p class="mt-2 text-gray-600">Réessayez plus tard ou modifiez vos critères de recherche.</p>
+                </div>
+            {% else %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for annonce in annonces %}
+                        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                            <div class="p-6">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h3 class="font-bold text-xl text-gray-900">{{ annonce.titre }}</h3>
+                                        <p class="text-gray-600">Départ le {{ annonce.departureDate|date("d/m/Y à H:i") }}</p>
+                                    </div>
+                                    {% if annonce.status == 'ouvert' %}
+                                        <span class="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                                            Ouvert
+                                        </span>
+                                    {% elseif annonce.status == 'plein' %}
+                                        <span class="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
+                                            Plein
+                                        </span>
+                                    {% elseif annonce.status == 'termine' %}
+                                        <span class="px-3 py-1 bg-gray-100 text-gray-800 text-xs font-semibold rounded-full">
+                                            Terminé
+                                        </span>
+                                    {% else %}
+                                        <span class="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">
+                                            {{ annonce.status }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mt-4 space-y-2">
+                                    <div class="flex items-start">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        <div>
+                                            <span class="text-gray-700">{{ annonce.trajet.getDeparturePoint() }}</span>
+                                            <div class="flex items-center">
+                                                <div class="h-4 border-l-2 border-dotted border-gray-400 ml-1.5"></div>
+                                            </div>
+                                            <span class="text-gray-700">{{ annonce.trajet.getArrivalPoint() }}</span>
                                         </div>
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        <div class="text-gray-700">
-                                            {{ annonce.departureDate|date('d/m/Y H:i') }}
-                                        </div>
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        <div class="text-gray-700">
-                                            {{ annonce.getAvailableSeats() }}
-                                        </div>
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        <div class="text-gray-700">
-                                            {{ annonce.trajet.price }} €
-                                        </div>
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        <div class="text-gray-700">
-                                            {% if annonce.status == 'ouvert' %}
-                                                <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                                                    Ouvert
-                                                </span>
-                                            {% elseif annonce.status == 'plein' %}
-                                                <span class="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                                                    Plein
-                                                </span>
-                                            {% elseif annonce.status == 'termine' %}
-                                                <span class="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
-                                                    Terminé
-                                                </span>
-                                            {% else %}
-                                                <span class="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
-                                                    {{ annonce.status }}
-                                                </span>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        <div class="flex items-center space-x-2">
-                                            {% if annonce.status != 'plein' and annonce.status != 'termine' %}
-                                                <a href="{{ path('app_passager_reservation_create', {'id': annonce.id}) }}"
-                                                   class="text-green-500 hover:text-green-700 font-medium">
-                                                    <i class="fas fa-ticket-alt mr-1"></i> Réserver
-                                                </a>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
+                                    </div>
+                                    <div class="flex items-start">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span class="text-gray-700 font-medium">{{ annonce.trajet.price }}€</span>
+                                    </div>
+                                    <div class="flex items-start">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                        <span class="text-gray-700">{{ annonce.getAvailableSeats() }} places disponibles</span>
+                                    </div>
+                                </div>
+                                
+                                {% if annonce.description %}
+                                    <div class="mt-4">
+                                        <p class="text-sm text-gray-600">{{ annonce.description|length > 100 ? annonce.description|slice(0, 100) ~ '...' : annonce.description }}</p>
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="mt-4 flex justify-end">
+                                    {% if annonce.status != 'plein' and annonce.status != 'termine' %}
+                                        <a href="{{ path('app_passager_reservation_create', {'id': annonce.id}) }}" 
+                                           class="inline-flex items-center px-3 py-1.5 bg-green-100 text-green-800 text-xs font-medium rounded-lg hover:bg-green-200 transition-colors duration-300">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                                            </svg>
+                                            Réserver
+                                        </a>
+                                    {% else %}
+                                        <span class="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-lg">
+                                            Non disponible
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
 
             <div class="mt-6 flex justify-center">
                 <nav class="flex items-center space-x-2">
