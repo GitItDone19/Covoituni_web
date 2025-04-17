@@ -1,0 +1,196 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Welcome to CovoitUni!{% endblock %}
+
+{% block body %}
+<div class="setup-wizard-container">
+    <div class="setup-wizard">
+        <div class="setup-header">
+            <div class="success-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+            </div>
+            <h1>Setup Complete!</h1>
+            <p>Thank you for completing your profile, {{ app.user.username }}!</p>
+        </div>
+
+        <div class="welcome-content">
+            <h2>Your Profile Information</h2>
+            
+            <div class="profile-info">
+                <div class="info-item">
+                    <span class="info-label">Username:</span>
+                    <span class="info-value">{{ app.user.username }}</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">{{ app.user.email }}</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">Phone:</span>
+                    <span class="info-value">{{ app.user.tel }}</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">Role:</span>
+                    <span class="info-value">{{ app.user.role.libelle }}</span>
+                </div>
+            </div>
+            
+            <div class="next-steps">
+                <h3>What's Next?</h3>
+                <ul>
+                    <li>Browse available rides</li>
+                    <li>Post your own rides</li>
+                    <li>Connect with other university students</li>
+                    <li>Update your profile anytime</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="setup-buttons">
+            <a href="{{ path('app_home') }}" class="btn btn-primary btn-block">Continue to Homepage</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .setup-wizard-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 80vh;
+        padding: 2rem;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+    
+    .setup-wizard {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 600px;
+        overflow: hidden;
+        padding: 2rem;
+    }
+    
+    .setup-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .success-icon {
+        margin: 0 auto 1rem;
+        width: 80px;
+        height: 80px;
+        background: #d4edda;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #28a745;
+    }
+    
+    .setup-header h1 {
+        color: #4a4a4a;
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .setup-header p {
+        color: #757575;
+        font-size: 1.1rem;
+    }
+    
+    .welcome-content {
+        background-color: #f9f9f9;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .welcome-content h2 {
+        color: #4a4a4a;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 0.5rem;
+    }
+    
+    .profile-info {
+        margin-bottom: 2rem;
+    }
+    
+    .info-item {
+        display: flex;
+        margin-bottom: 0.75rem;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        width: 100px;
+        color: #555;
+    }
+    
+    .info-value {
+        flex: 1;
+        color: #333;
+    }
+    
+    .next-steps {
+        border-top: 1px solid #eee;
+        padding-top: 1rem;
+    }
+    
+    .next-steps h3 {
+        color: #4a4a4a;
+        font-size: 1.2rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .next-steps ul {
+        padding-left: 1.5rem;
+    }
+    
+    .next-steps li {
+        margin-bottom: 0.5rem;
+        color: #555;
+    }
+    
+    .setup-buttons {
+        margin-top: 1rem;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+    
+    .btn-primary {
+        background-color: #4a90e2;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #357ABD;
+    }
+    
+    .btn-block {
+        width: 100%;
+    }
+</style>
+{% endblock %} 
