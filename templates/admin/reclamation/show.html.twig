@@ -1,44 +1,30 @@
-{% extends 'base.html.twig' %}
+{% extends 'layouts/admin_layout.html.twig' %}
 
 {% block title %}Détail de la réclamation{% endblock %}
 
 {% block body %}
-    <div class="container mx-auto px-4 py-8 max-w-7xl">
-        <!-- Header with animation -->
-        <div class="mb-8 animate-fade-in-down">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="mb-8 animate-fade-in">
             <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
                 <div>
-                    <h1 class="text-4xl font-extrabold text-gray-800 mb-2 bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">Réclamation #{{ reclamation.id }}</h1>
-                    <div class="h-1 w-32 bg-gradient-to-r from-primary to-blue-600 rounded mt-2"></div>
+                    <h1 class="text-3xl font-bold text-admin-primary">Détail de la réclamation</h1>
+                    <p class="text-gray-500 mt-1">Réclamation #{{ reclamation.id }}</p>
+                    <div class="h-1 w-32 bg-gradient-to-r from-admin-primary to-admin-secondary rounded mt-2"></div>
                 </div>
-                <div class="flex flex-wrap gap-3">
-                    <a href="{{ path('app_admin_reclamation_index') }}" 
-                       class="inline-flex items-center px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-300 shadow-sm transform hover:scale-105">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ path('app_admin_reclamation_index') }}" class="flex items-center px-4 py-2 text-sm font-medium rounded-lg text-slate-600 hover:text-admin-primary bg-slate-100 hover:bg-admin-light transition-colors duration-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
                         Retour à la liste
                     </a>
-                    
-                    {% if not reclamation.reply or reclamation.state == 'in_progress' %}
-                        <a href="{{ path('app_admin_reclamation_reply', {'id': reclamation.id}) }}" 
-                           class="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-lg hover:opacity-90 transition-all duration-300 shadow-md transform hover:scale-105">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                            </svg>
-                            Répondre
-                        </a>
-                    {% endif %}
-                    
-                    <form method="post" action="{{ path('app_admin_reclamation_delete', {'id': reclamation.id}) }}" class="inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette réclamation?');">
-                        <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ reclamation.id) }}">
-                        <button type="submit" class="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:opacity-90 transition-all duration-300 shadow-md transform hover:scale-105">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Supprimer
-                        </button>
-                    </form>
+                    <a href="{{ path('app_admin_reclamation_reply', {'id': reclamation.id}) }}" class="flex items-center px-4 py-2 text-sm font-medium rounded-lg text-white bg-gradient-to-r from-admin-primary to-admin-secondary shadow-md hover:shadow-lg transition-all duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                        </svg>
+                        Répondre
+                    </a>
                 </div>
             </div>
             

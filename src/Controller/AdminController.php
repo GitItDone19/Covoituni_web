@@ -40,6 +40,7 @@ class AdminController extends AbstractController
                 'conducteurs' => $utilisateurRepository->countByRole('CONDUCTEUR'),
                 'passagers' => $utilisateurRepository->countByRole('PASSAGER'),
                 'active' => $utilisateurRepository->countActive(),
+                'new_this_week' => $utilisateurRepository->countCreatedLast7Days(),
             ],
             
             // Annonce statistics
