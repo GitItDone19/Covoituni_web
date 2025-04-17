@@ -23,6 +23,7 @@ use App\Repository\EventRepository;
 use App\Repository\AnnonceEventRepository;
 use App\Repository\EventParticipationRepository;
 use App\Entity\EventParticipation;
+use App\Service\NotificationService;
 
 #[Route('/passager')]
 class PassagerController extends AbstractController
@@ -210,7 +211,7 @@ class PassagerController extends AbstractController
     }
     
     #[Route('/reclamation/submit', name: 'app_passager_reclamation_submit', methods: ['POST'])]
-    public function submitReclamation(Request $request, EntityManagerInterface $entityManager): Response
+    public function submitReclamation(Request $request, EntityManagerInterface $entityManager, NotificationService $notificationService): Response
     {
         $this->denyAccessUnlessGranted('ROLE_PASSAGER');
         
@@ -229,10 +230,13 @@ class PassagerController extends AbstractController
         $reclamation->setSubject($subject);
         $reclamation->setDescription($description);
         $reclamation->setDate(new \DateTime());
-        $reclamation->setState('pending');
+        $reclamation->setStatus('pending');
         
         $entityManager->persist($reclamation);
         $entityManager->flush();
+        
+        // Notify admins about the new reclamation
+        $notificationService->notifyAdminNewReclamation($reclamation);
         
         $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
         // Redirect to the reclamation list page after successful submission

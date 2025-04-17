@@ -122,17 +122,63 @@
                     </div>
                 </div>
                 
+                <!-- Replace the old reply section with the new responses section -->
                 {% if reclamation.reply %}
                     <div class="mt-8">
                         <h3 class="text-lg font-semibold text-gray-700 mb-3 flex items-center">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                             </svg>
-                            Réponse de l'administration
+                            Réponse de l'administration (ancienne)
                         </h3>
                         <div class="bg-primary/5 p-6 rounded-lg border border-primary/20 shadow-inner">
                             <p class="text-gray-700 whitespace-pre-line">{{ reclamation.reply }}</p>
                         </div>
+                    </div>
+                {% endif %}
+
+                <!-- Display new responses -->
+                {% if not reclamation.reponses.empty() %}
+                    <div class="mt-8">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                            Réponses de l'administration
+                        </h3>
+                        
+                        {% for reponse in reclamation.reponses %}
+                            <div class="bg-primary/5 p-6 rounded-lg border border-primary/20 shadow-inner mb-4">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div>
+                                        <span class="font-semibold text-primary">
+                                            {% if reponse.adminUsername %}
+                                                {{ reponse.adminUsername }}
+                                            {% else %}
+                                                Administration
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        {{ reponse.date|date('d/m/Y à H:i') }}
+                                    </div>
+                                </div>
+                                <p class="text-gray-700 whitespace-pre-line">{{ reponse.content }}</p>
+                                
+                                <!-- Delete response button for admins -->
+                                <div class="mt-3 flex justify-end">
+                                    <form method="post" action="{{ path('app_admin_reclamation_delete_response', {'id': reclamation.id, 'responseId': reponse.id}) }}" class="inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette réponse?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete_response' ~ reponse.id) }}">
+                                        <button type="submit" class="text-red-600 hover:text-red-800 text-sm flex items-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                            Supprimer
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endfor %}
                     </div>
                 {% endif %}
             </div>
@@ -232,8 +278,8 @@
                     </div>
                     
                     <div>
-                        <label for="reply" class="block text-sm font-medium text-gray-700 mb-1">Réponse</label>
-                        <textarea id="reply" name="reply" rows="6" required
+                        <label for="content" class="block text-sm font-medium text-gray-700 mb-1">Réponse</label>
+                        <textarea id="content" name="content" rows="6" required
                                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary shadow-sm"
                                   placeholder="Écrivez votre réponse ici..."></textarea>
                     </div>
