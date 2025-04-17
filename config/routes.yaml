@@ -1,6 +1,0 @@
-controllers:
-    resource: ../src/Controller/
-    type: attribute
-
-admin:
-    resource: ./routes/admin.yaml
