@@ -36,8 +36,8 @@ class ConducteurController extends AbstractController
     {
         $user = $this->getUser();
         if ($user) {
-            // Find the user's car
-            return $carRepository->findOneBy(['userId' => $user->getId()]);
+            // Use the native SQL to find the car by userId
+            return $carRepository->findCarByUserId($user->getId());
         }
         return null;
     }
@@ -234,7 +234,7 @@ class ConducteurController extends AbstractController
         // Pour chaque annonce d'événement, récupérer ses réservations
         foreach ($annoncesEvent as $annonceEvent) {
             $reservations = $entityManager->getRepository(Reservation::class)
-                ->findBy(['annonceEvent' => $annonceEvent->getId(), 'type' => 'EVENT'], ['dateReservation' => 'DESC']);
+                ->findBy(['annonceEvent' => $annonceEvent, 'type' => 'EVENT'], ['dateReservation' => 'DESC']);
             
             // Enrichir chaque réservation avec les données utilisateur
             foreach ($reservations as $key => $reservation) {
@@ -359,8 +359,8 @@ class ConducteurController extends AbstractController
         
         $user = $this->getUser();
         
-        // Get the user's car
-        $voiture = $carRepository->findOneBy(['userId' => $user->getId()]);
+        // Get the user's car using our safe method
+        $voiture = $carRepository->findCarByUserId($user->getId());
         
         return $this->render('conducteur/voiture.html.twig', [
             'user' => $user,
@@ -1163,7 +1163,7 @@ class ConducteurController extends AbstractController
         
         foreach ($annonces as $annonce) {
             $reservations = $reservationRepository->findBy([
-                'annonceEvent' => $annonce->getId(),
+                'annonceEvent' => $annonce,
                 'type' => 'EVENT'
             ]);
             
@@ -1311,7 +1311,7 @@ class ConducteurController extends AbstractController
         }
 
         // Vérifier que la réservation est bien pour un événement
-        $annonceEvent = $annonceEventRepository->find($reservation->getAnnonceEvent());
+        $annonceEvent = $reservation->getAnnonceEvent();
         if (!$annonceEvent) {
             $this->addFlash('error', 'Annonce d\'événement non trouvée');
             return $this->redirectToRoute('app_conducteur_reservations');
@@ -1339,7 +1339,7 @@ class ConducteurController extends AbstractController
         $user = $this->getUser();
         
         // Récupérer les participations où l'utilisateur est conducteur
-        $participations = $participationRepository->findByConducteur($user->getId());
+        $participations = $participationRepository->findByConducteurExplicit($user->getId());
         
         // Organiser les données pour l'affichage
         $participationsData = [];
@@ -1367,7 +1367,7 @@ class ConducteurController extends AbstractController
         $user = $this->getUser();
         
         // Récupérer toutes les participations de l'utilisateur (participant et conducteur)
-        $participations = $participationRepository->findAllForUser($user->getId());
+        $participations = $participationRepository->findAllForUserExplicit($user->getId());
         
         // Reformater les données pour l'affichage
         $formattedParticipations = [];
@@ -1470,10 +1470,7 @@ class ConducteurController extends AbstractController
         $isParticipant = false;
         
         // Vérifier si l'utilisateur participe déjà à l'événement
-        $participation = $participationRepository->findOneBy([
-            'event' => $event,
-            'utilisateur' => $user
-        ]);
+        $participation = $participationRepository->findByUserAndEvent($user->getId(), $id);
         
         if ($participation) {
             $isParticipant = true;
@@ -1486,7 +1483,7 @@ class ConducteurController extends AbstractController
     }
 
     #[Route('/voiture/add', name: 'app_conducteur_voiture_add')]
-    public function addVoiture(Request $request, EntityManagerInterface $entityManager): Response
+    public function addVoiture(Request $request, EntityManagerInterface $entityManager, CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -1494,7 +1491,7 @@ class ConducteurController extends AbstractController
         $user = $this->getUser();
 
         // Check if user already has a car
-        $existingCar = $entityManager->getRepository(Car::class)->findOneBy(['userId' => $user->getId()]);
+        $existingCar = $carRepository->findCarByUserId($user->getId());
         if ($existingCar) {
             $this->addFlash('info', 'Vous avez déjà enregistré une voiture. Vous pouvez la modifier ci-dessous.');
             return $this->redirectToRoute('app_conducteur_voiture');
@@ -1532,10 +1529,30 @@ class ConducteurController extends AbstractController
             $car->setDateImatriculation(new \DateTime($dateImatriculation));
             $car->setDescription($description ?? '');
             $car->setCategorie($categorie);
-            $car->setUserId($user->getId());
             
             $entityManager->persist($car);
             $entityManager->flush();
+            
+            // Link the car to the user through a placeholder Annonce entry if no announcements exist
+            $existingAnnonces = $entityManager->getRepository('App\Entity\Annonce')
+                ->findBy(['driver_id' => $user->getId(), 'car_id' => $car->getId()]);
+                
+            if (empty($existingAnnonces)) {
+                // Create a placeholder announcement to link the car to the user
+                $annonce = new Annonce();
+                $annonce->setTitre('Voiture enregistrée');
+                $annonce->setDescription('Cette annonce a été créée automatiquement lors de l\'enregistrement de votre voiture.');
+                $annonce->setStatus('draft');
+                $annonce->setDriverId($user->getId());
+                $annonce->setCarId($car->getId());
+                $annonce->setDatePublication(new \DateTime());
+                $annonce->setDepartureDate(new \DateTime());
+                $annonce->setAvailableSeats(1);
+                $annonce->setEventId(0); // Set to 0 as it's not associated with any event
+                
+                $entityManager->persist($annonce);
+                $entityManager->flush();
+            }
             
             $this->addFlash('success', 'Votre voiture a été ajoutée avec succès !');
             return $this->redirectToRoute('app_conducteur_voiture');
@@ -1559,8 +1576,8 @@ class ConducteurController extends AbstractController
         
         $user = $this->getUser();
         
-        // Get the user's car
-        $voiture = $carRepository->findOneBy(['userId' => $user->getId()]);
+        // Get the user's car using our safe method
+        $voiture = $carRepository->findCarByUserId($user->getId());
         
         if (!$voiture) {
             $this->addFlash('error', 'Vous n\'avez pas encore de voiture enregistrée.');

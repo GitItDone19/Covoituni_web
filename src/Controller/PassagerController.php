@@ -24,6 +24,8 @@ use App\Repository\AnnonceEventRepository;
 use App\Repository\EventParticipationRepository;
 use App\Entity\EventParticipation;
 use App\Service\NotificationService;
+use App\Repository\EventsRepository;
+use Knp\Component\Pager\PaginatorInterface;
 
 #[Route('/passager')]
 class PassagerController extends AbstractController
@@ -65,16 +67,13 @@ class PassagerController extends AbstractController
         }
         
         // Get event participation stats
-        $eventParticipations = $eventParticipationRepository->findBy(['utilisateur' => $user]);
+        $eventParticipations = $eventParticipationRepository->findByUserExplicit($userId);
         $eventParticipationsCount = count($eventParticipations);
         
         // Get upcoming reservations (for upcoming trips section)
         $upcomingReservations = $entityManager->getRepository(Reservation::class)
             ->createQueryBuilder('r')
             ->leftJoin('r.annonce', 'a')
-            ->leftJoin('r.annonceEvent', 'ae')
-            ->leftJoin('App\Entity\Utilisateur', 'u1', 'WITH', 'a.driver_id = u1.id')
-            ->leftJoin('App\Entity\Utilisateur', 'u2', 'WITH', 'ae.driverId = u2.id')
             ->where('r.userId = :userId')
             ->andWhere('r.status IN (:statuses)')
             ->setParameter('userId', $userId)
@@ -91,12 +90,8 @@ class PassagerController extends AbstractController
                 $driver = $entityManager->getRepository('App\Entity\Utilisateur')
                     ->find($driverId);
                 $reservation->driver = $driver;
-            } elseif ($reservation->getType() == 'EVENT' && $reservation->getAnnonceEvent()) {
-                $driverId = $reservation->getAnnonceEvent()->getDriverId();
-                $driver = $entityManager->getRepository('App\Entity\Utilisateur')
-                    ->find($driverId);
-                $reservation->driver = $driver;
             }
+            // Skip event-related reservations until the database is updated
         }
         
         // Get recent activities
@@ -821,7 +816,7 @@ class PassagerController extends AbstractController
         $userParticipations = [];
         
         // Find all events the user participates in
-        $participations = $participationRepository->findBy(['utilisateur' => $user]);
+        $participations = $participationRepository->findByUserExplicit($user->getId());
         
         // Create a map of event IDs to quickly check if user participates
         foreach ($participations as $participation) {
@@ -847,10 +842,7 @@ class PassagerController extends AbstractController
         $isParticipant = false;
         
         // Vérifier si l'utilisateur participe déjà à l'événement
-        $participation = $participationRepository->findOneBy([
-            'event' => $event,
-            'utilisateur' => $user
-        ]);
+        $participation = $participationRepository->findByUserAndEvent($user->getId(), $id);
         
         if ($participation) {
             $isParticipant = true;
@@ -863,35 +855,34 @@ class PassagerController extends AbstractController
     }
 
     #[Route('/passager/event/{id}/participer', name: 'app_passager_event_participer', methods: ['POST'])]
-    public function participerEvent(int $id, EventRepository $eventRepository, EntityManagerInterface $entityManager): Response
+    public function participerEvent(int $id, EventRepository $eventRepository, EventParticipationRepository $eventParticipationRepository, EntityManagerInterface $entityManager): Response
     {
         $event = $eventRepository->find($id);
-        
+
         if (!$event) {
-            throw $this->createNotFoundException('Événement non trouvé');
+            $this->addFlash('error', "Cet événement n'existe pas!");
+            return $this->redirectToRoute('app_passager_events');
         }
-        
+
         $user = $this->getUser();
+
+        // Check if the user already participates in this event using the new repository method
+        $participation = $eventParticipationRepository->findByUserAndEvent($user->getId(), $id);
         
-        // Vérifier si l'utilisateur participe déjà à l'événement
-        $existingParticipation = $entityManager->getRepository(EventParticipation::class)->findOneBy([
-            'event' => $event,
-            'utilisateur' => $user
-        ]);
-        
-        if ($existingParticipation) {
+        if ($participation) {
             $this->addFlash('info', 'Vous participez déjà à cet événement.');
             return $this->redirectToRoute('app_passager_event_show', ['id' => $id]);
         }
-        
+
         // Créer une nouvelle participation
         $participation = new EventParticipation();
         $participation->setEvent($event);
         $participation->setUtilisateur($user);
+        $participation->setDateInscription(new \DateTime());
         
         $entityManager->persist($participation);
         $entityManager->flush();
-        
+
         $this->addFlash('success', 'Vous avez été inscrit à l\'événement avec succès !');
         return $this->redirectToRoute('app_passager_event_show', ['id' => $id]);
     }
@@ -908,10 +899,7 @@ class PassagerController extends AbstractController
         $user = $this->getUser();
         
         // Trouver la participation de l'utilisateur
-        $participation = $participationRepository->findOneBy([
-            'event' => $event,
-            'utilisateur' => $user
-        ]);
+        $participation = $participationRepository->findByUserAndEvent($user->getId(), $id);
         
         if (!$participation) {
             $this->addFlash('error', 'Vous ne participez pas à cet événement.');
