@@ -43,21 +43,30 @@
                 </div>
                 
                 <div>
-                    <label for="marque" class="block text-sm font-medium text-gray-700 mb-1">
+                    <label for="make-dropdown" class="block text-sm font-medium text-gray-700 mb-1">
                         Marque *
                     </label>
-                    <input type="text" id="marque" name="marque" 
-                           class="w-full rounded-lg border-gray-300 shadow-sm"
-                           placeholder="Renault, Peugeot, etc." value="{{ voiture.marque }}" required>
+                    <select id="make-dropdown" class="w-full rounded-lg border-gray-300 shadow-sm" required>
+                        <option value="">Sélectionnez une marque</option>
+                        {% if carMakes is defined and carMakes|length > 0 %}
+                            {% for make in carMakes %}
+                                <option value="{{ make.data.id }}" {% if make.data.attributes.name == voiture.marque %}selected{% endif %}>
+                                    {{ make.data.attributes.name }}
+                                </option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                    <input type="hidden" id="marque" name="marque" value="{{ voiture.marque }}" required>
                 </div>
                 
                 <div>
-                    <label for="modele" class="block text-sm font-medium text-gray-700 mb-1">
+                    <label for="model-dropdown" class="block text-sm font-medium text-gray-700 mb-1">
                         Modèle *
                     </label>
-                    <input type="text" id="modele" name="modele" 
-                           class="w-full rounded-lg border-gray-300 shadow-sm"
-                           placeholder="Clio, 208, etc." value="{{ voiture.modele }}" required>
+                    <select id="model-dropdown" class="w-full rounded-lg border-gray-300 shadow-sm" required>
+                        <option value="">Chargement des modèles...</option>
+                    </select>
+                    <input type="hidden" id="modele" name="modele" value="{{ voiture.modele }}" required>
                 </div>
                 
                 <div>
@@ -103,4 +112,85 @@
             </div>
         </form>
     </div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const makeDropdown = document.getElementById('make-dropdown');
+        const modelDropdown = document.getElementById('model-dropdown');
+        const marqueInput = document.getElementById('marque');
+        const modeleInput = document.getElementById('modele');
+        const currentModele = "{{ voiture.modele }}";
+        
+        // Load models for the selected make on page load
+        if (makeDropdown.value) {
+            loadModels(makeDropdown.value, currentModele);
+        }
+
+        // Update hidden input when dropdown changes
+        makeDropdown.addEventListener('change', function() {
+            if (this.value) {
+                const selectedOption = this.options[this.selectedIndex];
+                marqueInput.value = selectedOption.text;
+                
+                // Load models for this make
+                loadModels(this.value);
+            } else {
+                // Reset model dropdown when no make is selected
+                modelDropdown.innerHTML = '<option value="">Sélectionnez d\'abord une marque</option>';
+                modelDropdown.disabled = true;
+                marqueInput.value = '';
+                modeleInput.value = '';
+            }
+        });
+
+        // Update hidden input when model dropdown changes
+        modelDropdown.addEventListener('change', function() {
+            if (this.value) {
+                const selectedOption = this.options[this.selectedIndex];
+                modeleInput.value = selectedOption.text;
+            } else {
+                modeleInput.value = '';
+            }
+        });
+        
+        // Function to load models from API
+        function loadModels(makeId, preselectedModel = null) {
+            // Clear model dropdown and show loading
+            modelDropdown.innerHTML = '<option value="">Chargement des modèles...</option>';
+            modelDropdown.disabled = true;
+            
+            // Fetch models for the selected make
+            fetch(`/conducteur/api/car-models/${makeId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Clear loading option
+                    modelDropdown.innerHTML = '<option value="">Sélectionnez un modèle</option>';
+                    
+                    // Add model options from API response
+                    data.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.data.id;
+                        option.textContent = model.data.attributes.name;
+                        
+                        // Preselect the current model if it matches
+                        if (preselectedModel && model.data.attributes.name === preselectedModel) {
+                            option.selected = true;
+                        }
+                        
+                        modelDropdown.appendChild(option);
+                    });
+                    
+                    // Enable the model dropdown
+                    modelDropdown.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error fetching models:', error);
+                    modelDropdown.innerHTML = '<option value="">Erreur de chargement</option>';
+                });
+        }
+    });
+</script>
 {% endblock %} 

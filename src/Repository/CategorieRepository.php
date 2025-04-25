@@ -38,4 +38,34 @@ class CategorieRepository extends ServiceEntityRepository
             $this->getEntityManager()->flush();
         }
     }
+    
+    /**
+     * Find the most recent categories
+     *
+     * @param int $limit The number of categories to retrieve
+     * @return Categorie[] Returns an array of Categorie objects
+     */
+    public function findRecent(int $limit = 5): array
+    {
+        return $this->createQueryBuilder('c')
+            ->orderBy('c.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+    
+    /**
+     * Find categories with associated cars
+     *
+     * @return Categorie[] Returns an array of Categorie objects
+     */
+    public function findWithCars(): array
+    {
+        return $this->createQueryBuilder('c')
+            ->join('c.cars', 'car')
+            ->groupBy('c.id')
+            ->having('COUNT(car.id) > 0')
+            ->getQuery()
+            ->getResult();
+    }
 } 

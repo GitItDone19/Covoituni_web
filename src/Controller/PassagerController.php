@@ -23,9 +23,6 @@ use App\Repository\EventRepository;
 use App\Repository\AnnonceEventRepository;
 use App\Repository\EventParticipationRepository;
 use App\Entity\EventParticipation;
-use App\Service\NotificationService;
-use App\Repository\EventsRepository;
-use Knp\Component\Pager\PaginatorInterface;
 
 #[Route('/passager')]
 class PassagerController extends AbstractController
@@ -67,13 +64,16 @@ class PassagerController extends AbstractController
         }
         
         // Get event participation stats
-        $eventParticipations = $eventParticipationRepository->findByUserExplicit($userId);
+        $eventParticipations = $eventParticipationRepository->findBy(['utilisateur' => $user]);
         $eventParticipationsCount = count($eventParticipations);
         
         // Get upcoming reservations (for upcoming trips section)
         $upcomingReservations = $entityManager->getRepository(Reservation::class)
             ->createQueryBuilder('r')
             ->leftJoin('r.annonce', 'a')
+            ->leftJoin('r.annonceEvent', 'ae')
+            ->leftJoin('App\Entity\Utilisateur', 'u1', 'WITH', 'a.driver_id = u1.id')
+            ->leftJoin('App\Entity\Utilisateur', 'u2', 'WITH', 'ae.driverId = u2.id')
             ->where('r.userId = :userId')
             ->andWhere('r.status IN (:statuses)')
             ->setParameter('userId', $userId)
@@ -90,8 +90,12 @@ class PassagerController extends AbstractController
                 $driver = $entityManager->getRepository('App\Entity\Utilisateur')
                     ->find($driverId);
                 $reservation->driver = $driver;
+            } elseif ($reservation->getType() == 'EVENT' && $reservation->getAnnonceEvent()) {
+                $driverId = $reservation->getAnnonceEvent()->getDriverId();
+                $driver = $entityManager->getRepository('App\Entity\Utilisateur')
+                    ->find($driverId);
+                $reservation->driver = $driver;
             }
-            // Skip event-related reservations until the database is updated
         }
         
         // Get recent activities
@@ -206,7 +210,7 @@ class PassagerController extends AbstractController
     }
     
     #[Route('/reclamation/submit', name: 'app_passager_reclamation_submit', methods: ['POST'])]
-    public function submitReclamation(Request $request, EntityManagerInterface $entityManager, NotificationService $notificationService): Response
+    public function submitReclamation(Request $request, EntityManagerInterface $entityManager): Response
     {
         $this->denyAccessUnlessGranted('ROLE_PASSAGER');
         
@@ -225,13 +229,10 @@ class PassagerController extends AbstractController
         $reclamation->setSubject($subject);
         $reclamation->setDescription($description);
         $reclamation->setDate(new \DateTime());
-        $reclamation->setStatus('pending');
+        $reclamation->setState('pending');
         
         $entityManager->persist($reclamation);
         $entityManager->flush();
-        
-        // Notify admins about the new reclamation
-        $notificationService->notifyAdminNewReclamation($reclamation);
         
         $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
         // Redirect to the reclamation list page after successful submission
@@ -613,27 +614,6 @@ class PassagerController extends AbstractController
         if ($request->isMethod('POST')) {
             $comment = $request->request->get('comment');
             
-            // Liste des mots inappropriés à vérifier
-            $inappropriateWords = ['fuck', 'fuck you', 'bitch', 'asshole', 'shit', 'pute', 'connard', 'putain', 'merde'];
-            
-            // Vérifier si le commentaire contient des mots inappropriés
-            $containsInappropriateWord = false;
-            foreach ($inappropriateWords as $word) {
-                if (stripos($comment, $word) !== false) {
-                    $containsInappropriateWord = true;
-                    break;
-                }
-            }
-            
-            // Si le commentaire contient des mots inappropriés, afficher une erreur
-            if ($containsInappropriateWord) {
-                $this->addFlash('error', 'Votre commentaire contient des termes inappropriés. Veuillez utiliser un langage respectueux.');
-                return $this->render('passager/create_reservation.html.twig', [
-                    'annonce' => $annonce,
-                    'user' => $user
-                ]);
-            }
-            
             // Créer une nouvelle réservation
             $reservation = new Reservation();
             $reservation->setAnnonce($annonce);
@@ -816,7 +796,7 @@ class PassagerController extends AbstractController
         $userParticipations = [];
         
         // Find all events the user participates in
-        $participations = $participationRepository->findByUserExplicit($user->getId());
+        $participations = $participationRepository->findBy(['utilisateur' => $user]);
         
         // Create a map of event IDs to quickly check if user participates
         foreach ($participations as $participation) {
@@ -842,7 +822,10 @@ class PassagerController extends AbstractController
         $isParticipant = false;
         
         // Vérifier si l'utilisateur participe déjà à l'événement
-        $participation = $participationRepository->findByUserAndEvent($user->getId(), $id);
+        $participation = $participationRepository->findOneBy([
+            'event' => $event,
+            'utilisateur' => $user
+        ]);
         
         if ($participation) {
             $isParticipant = true;
@@ -855,34 +838,35 @@ class PassagerController extends AbstractController
     }
 
     #[Route('/passager/event/{id}/participer', name: 'app_passager_event_participer', methods: ['POST'])]
-    public function participerEvent(int $id, EventRepository $eventRepository, EventParticipationRepository $eventParticipationRepository, EntityManagerInterface $entityManager): Response
+    public function participerEvent(int $id, EventRepository $eventRepository, EntityManagerInterface $entityManager): Response
     {
         $event = $eventRepository->find($id);
-
-        if (!$event) {
-            $this->addFlash('error', "Cet événement n'existe pas!");
-            return $this->redirectToRoute('app_passager_events');
-        }
-
-        $user = $this->getUser();
-
-        // Check if the user already participates in this event using the new repository method
-        $participation = $eventParticipationRepository->findByUserAndEvent($user->getId(), $id);
         
-        if ($participation) {
+        if (!$event) {
+            throw $this->createNotFoundException('Événement non trouvé');
+        }
+        
+        $user = $this->getUser();
+        
+        // Vérifier si l'utilisateur participe déjà à l'événement
+        $existingParticipation = $entityManager->getRepository(EventParticipation::class)->findOneBy([
+            'event' => $event,
+            'utilisateur' => $user
+        ]);
+        
+        if ($existingParticipation) {
             $this->addFlash('info', 'Vous participez déjà à cet événement.');
             return $this->redirectToRoute('app_passager_event_show', ['id' => $id]);
         }
-
+        
         // Créer une nouvelle participation
         $participation = new EventParticipation();
         $participation->setEvent($event);
         $participation->setUtilisateur($user);
-        $participation->setDateInscription(new \DateTime());
         
         $entityManager->persist($participation);
         $entityManager->flush();
-
+        
         $this->addFlash('success', 'Vous avez été inscrit à l\'événement avec succès !');
         return $this->redirectToRoute('app_passager_event_show', ['id' => $id]);
     }
@@ -899,7 +883,10 @@ class PassagerController extends AbstractController
         $user = $this->getUser();
         
         // Trouver la participation de l'utilisateur
-        $participation = $participationRepository->findByUserAndEvent($user->getId(), $id);
+        $participation = $participationRepository->findOneBy([
+            'event' => $event,
+            'utilisateur' => $user
+        ]);
         
         if (!$participation) {
             $this->addFlash('error', 'Vous ne participez pas à cet événement.');

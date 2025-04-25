@@ -8,6 +8,9 @@ use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\Length;
+use Symfony\Component\Validator\Constraints\Choice;
 
 class ReclamationResponseType extends AbstractType
 {
@@ -31,35 +34,54 @@ class ReclamationResponseType extends AbstractType
                     'required' => true,
                     'choices' => [
                         'En attente' => 'pending',
-                        'En cours de traitement' => 'processing',
+                        'En cours de traitement' => 'in_progress',
                         'Résolu' => 'resolved',
                         'Rejeté' => 'rejected'
                     ],
                     'label' => 'Statut',
                     'attr' => [
                         'class' => 'form-select'
-                    ]
+                    ],
+                    'constraints' => [
+                        new NotBlank(['message' => 'Le statut est obligatoire']),
+                        new Choice([
+                            'choices' => ['pending', 'in_progress', 'resolved', 'rejected'],
+                            'message' => 'Statut invalide. Les options disponibles sont: en attente, en cours, résolu, rejeté'
+                        ]),
+                    ],
                 ])
-                ->add('reply', TextareaType::class, [
+                ->add('content', TextareaType::class, [
                     'required' => false,
                     'label' => false,
+                    'mapped' => false,
                     'attr' => [
                         'rows' => 6,
                         'placeholder' => 'Votre réponse...',
                         'maxlength' => 1000,
+                        'minlength' => 10,
+                        'class' => 'form-control',
+                    ],
+                    'constraints' => [
+                        new Length([
+                            'min' => 10,
+                            'max' => 1000,
+                            'minMessage' => 'La réponse doit contenir au moins {{ limit }} caractères',
+                            'maxMessage' => 'La réponse ne peut pas dépasser {{ limit }} caractères',
+                        ]),
                     ],
                     'help' => 'Maximum 1000 caractères'
                 ]);
         } else {
             // Pour les passagers, afficher uniquement la réponse en lecture seule
             $builder
-                ->add('reply', TextareaType::class, [
+                ->add('content', TextareaType::class, [
                     'required' => false,
                     'label' => false,
+                    'mapped' => false,
                     'attr' => [
                         'rows' => 6,
                         'readonly' => true,
-                        'class' => 'bg-gray-100'
+                        'class' => 'bg-gray-100 form-control'
                     ],
                     'help' => 'Réponse de l\'administration'
                 ]);

@@ -155,27 +155,6 @@ class UtilisateurRepository extends ServiceEntityRepository implements PasswordU
             return $this->count([]);
         }
     }
-    
-    /**
-     * Count users created in the last 7 days
-     * 
-     * @return int The number of users created in the last 7 days
-     */
-    public function countCreatedLast7Days(): int
-    {
-        $sevenDaysAgo = new \DateTime('-7 days');
-        
-        try {
-            return $this->createQueryBuilder('u')
-                ->select('COUNT(u.id)')
-                ->where('u.createdAt >= :sevenDaysAgo')
-                ->setParameter('sevenDaysAgo', $sevenDaysAgo)
-                ->getQuery()
-                ->getSingleScalarResult();
-        } catch (\Exception $e) {
-            return 0;
-        }
-    }
 
 //    /**
 //     * @return Utilisateur[] Returns an array of Utilisateur objects

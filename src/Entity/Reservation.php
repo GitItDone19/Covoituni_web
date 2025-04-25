@@ -37,7 +37,7 @@ class Reservation
     private ?string $type = 'TRAJET';
 
     #[ORM\ManyToOne(inversedBy: 'reservations')]
-    #[ORM\JoinColumn(name: 'event_id', referencedColumnName: 'id', nullable: true)]
+    #[ORM\JoinColumn(name: 'annonce_event_id', referencedColumnName: 'id', nullable: true)]
     private ?AnnonceEvent $annonceEvent = null;
 
     public function __construct()

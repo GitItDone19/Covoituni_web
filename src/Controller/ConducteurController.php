@@ -26,8 +26,8 @@ use App\Repository\AnnonceEventRepository;
 use App\Repository\CarRepository;
 use App\Repository\EventParticipationRepository;
 use App\Entity\Reclamation;
-use App\Service\NotificationService;
-use App\Repository\ReclamationRepository;
+use App\Service\CarApiService;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 #[Route('/conducteur')]
 class ConducteurController extends AbstractController
@@ -36,8 +36,8 @@ class ConducteurController extends AbstractController
     {
         $user = $this->getUser();
         if ($user) {
-            // Use the native SQL to find the car by userId
-            return $carRepository->findCarByUserId($user->getId());
+            // Find the user's car
+            return $carRepository->findOneBy(['userId' => $user->getId()]);
         }
         return null;
     }
@@ -85,7 +85,11 @@ class ConducteurController extends AbstractController
     }
     
     #[Route('/reclamation/submit', name: 'app_conducteur_reclamation_submit', methods: ['POST'])]
-    public function submitReclamation(Request $request, EntityManagerInterface $entityManager, NotificationService $notificationService): Response
+    public function reclamationSubmit(
+        Request $request, 
+        EntityManagerInterface $entityManager,
+        \Symfony\Component\Validator\Validator\ValidatorInterface $validator
+    ): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -93,45 +97,76 @@ class ConducteurController extends AbstractController
         $subject = $request->request->get('subject');
         $description = $request->request->get('description');
         
-        // Validation
-        if (!$subject || !$description) {
-            $this->addFlash('error', 'Tous les champs sont obligatoires');
+        // Custom validation to ensure fields aren't just whitespace
+        if (trim($subject) === '') {
+            $this->addFlash('error', 'Le sujet ne peut pas être vide ou contenir uniquement des espaces');
             return $this->redirectToRoute('app_conducteur_reclamation');
         }
         
-        // Create new reclamation
+        if (trim($description) === '') {
+            $this->addFlash('error', 'La description ne peut pas être vide ou contenir uniquement des espaces');
+            return $this->redirectToRoute('app_conducteur_reclamation');
+        }
+        
+        // Créer une nouvelle réclamation
         $reclamation = new Reclamation();
         $reclamation->setUser($this->getUser());
-        $reclamation->setSubject($subject);
-        $reclamation->setDescription($description);
+        $reclamation->setSubject(trim($subject));  // Trim to remove leading/trailing whitespace
+        $reclamation->setDescription(trim($description));  // Trim to remove leading/trailing whitespace
         $reclamation->setDate(new \DateTime());
-        $reclamation->setStatus('pending');
+        $reclamation->setState('pending');
+        
+        // Validate the entity using the constraints defined in the entity
+        $errors = $validator->validate($reclamation);
+        
+        if (count($errors) > 0) {
+            // Add each validation error as a flash message
+            foreach ($errors as $error) {
+                $this->addFlash('error', $error->getMessage());
+            }
+            return $this->redirectToRoute('app_conducteur_reclamation');
+        }
         
         $entityManager->persist($reclamation);
         $entityManager->flush();
         
-        // Notify admins about the new reclamation
-        $notificationService->notifyAdminNewReclamation($reclamation);
-        
         $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
         
-        // Redirect to a page showing the user's reclamations
         return $this->redirectToRoute('app_conducteur_mes_reclamations');
     }
     
     #[Route('/mes-reclamations', name: 'app_conducteur_mes_reclamations')]
-    public function mesReclamations(ReclamationRepository $reclamationRepository, CarRepository $carRepository): Response
+    public function mesReclamations(EntityManagerInterface $entityManager): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
         
         $user = $this->getUser();
-        $reclamations = $reclamationRepository->findBy(['user' => $user], ['date' => 'DESC']);
         
-        return $this->render('conducteur/mes_reclamations.html.twig', [
+        // Récupérer les réclamations de l'utilisateur
+        $reclamations = $entityManager->getRepository(Reclamation::class)
+            ->findBy(['user' => $user], ['date' => 'DESC']);
+        
+        return $this->render('conducteur/reclamation/index.html.twig', [
             'user' => $user,
-            'reclamations' => $reclamations,
-            'car' => $this->getCarData($carRepository)
+            'reclamations' => $reclamations
+        ]);
+    }
+    
+    #[Route('/reclamation/{id}', name: 'app_conducteur_reclamation_show')]
+    public function reclamationShow(Reclamation $reclamation): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this page
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        // Vérifier que l'utilisateur est bien le propriétaire de la réclamation
+        if ($reclamation->getUser() !== $this->getUser()) {
+            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à voir cette réclamation');
+        }
+        
+        return $this->render('conducteur/reclamation/show.html.twig', [
+            'reclamation' => $reclamation,
+            'user' => $this->getUser()
         ]);
     }
     
@@ -234,7 +269,7 @@ class ConducteurController extends AbstractController
         // Pour chaque annonce d'événement, récupérer ses réservations
         foreach ($annoncesEvent as $annonceEvent) {
             $reservations = $entityManager->getRepository(Reservation::class)
-                ->findBy(['annonceEvent' => $annonceEvent, 'type' => 'EVENT'], ['dateReservation' => 'DESC']);
+                ->findBy(['annonceEvent' => $annonceEvent->getId(), 'type' => 'EVENT'], ['dateReservation' => 'DESC']);
             
             // Enrichir chaque réservation avec les données utilisateur
             foreach ($reservations as $key => $reservation) {
@@ -359,8 +394,8 @@ class ConducteurController extends AbstractController
         
         $user = $this->getUser();
         
-        // Get the user's car using our safe method
-        $voiture = $carRepository->findCarByUserId($user->getId());
+        // Get the user's car
+        $voiture = $carRepository->findOneBy(['userId' => $user->getId()]);
         
         return $this->render('conducteur/voiture.html.twig', [
             'user' => $user,
@@ -470,40 +505,6 @@ class ConducteurController extends AbstractController
         
         $user = $this->getUser();
         $trajetId = $request->request->get('trajet_id');
-        $titre = $request->request->get('titre');
-        $description = $request->request->get('description');
-        $departureDate = $request->request->get('departure_date');
-        
-        // Validation du titre: maximum 25 caractères alphanumériques
-        if (strlen($titre) > 25) {
-            $this->addFlash('error', 'Le titre ne doit pas dépasser 25 caractères.');
-            return $this->redirectToRoute('app_conducteur_ajouter_annonce');
-        }
-        
-        // Vérifier que le titre ne contient que des caractères alphanumériques et des espaces
-        if (!preg_match('/^[a-zA-Z0-9\s\-àáâäãåąčćęèéêëėįìíîïłńòóôöõøùúûüųūÿýżźñçšžÀÁÂÄÃÅĄĆČĖĘÈÉÊËÌÍÎÏĮŁŃÒÓÔÖÕØÙÚÛÜŲŪŸÝŻŹÑßÇŒÆŠŽ,.\']+$/', $titre)) {
-            $this->addFlash('error', 'Le titre ne doit contenir que des caractères alphanumériques.');
-            return $this->redirectToRoute('app_conducteur_ajouter_annonce');
-        }
-        
-        // Validation de la date: doit être dans le futur
-        $dateObj = new \DateTime($departureDate);
-        $now = new \DateTime();
-        if ($dateObj < $now) {
-            $this->addFlash('error', 'La date de départ ne peut pas être dans le passé.');
-            return $this->redirectToRoute('app_conducteur_ajouter_annonce');
-        }
-        
-        // Validation du contenu: pas de mots inappropriés dans la description
-        if (!empty($description)) {
-            $inappropriateWords = ['fuck', 'fuck you', 'bitch', 'asshole', 'shit', 'pute', 'connard', 'putain', 'merde'];
-            foreach ($inappropriateWords as $word) {
-                if (stripos($description, $word) !== false) {
-                    $this->addFlash('error', 'La description contient des termes inappropriés. Veuillez utiliser un langage respectueux.');
-                    return $this->redirectToRoute('app_conducteur_ajouter_annonce');
-                }
-            }
-        }
         
         // Récupérer le trajet sélectionné
         $trajet = $trajetRepository->find($trajetId);
@@ -514,15 +515,15 @@ class ConducteurController extends AbstractController
         }
         
         $annonce = new Annonce();
-        $annonce->setTitre($titre);
-        $annonce->setDescription($description);
+        $annonce->setTitre($request->request->get('titre'));
+        $annonce->setDescription($request->request->get('description'));
         $annonce->setTrajet($trajet);
         $annonce->setDriverId($user->getId());
         $annonce->setCarId(1); // Valeur par défaut, à ajuster selon votre modèle
         $annonce->setAvailableSeats((int)$request->request->get('available_seats'));
         $annonce->setStatus('ouvert');
         $annonce->setDatePublication(new \DateTime());
-        $annonce->setDepartureDate($dateObj);
+        $annonce->setDepartureDate(new \DateTime($request->request->get('departure_date')));
         
         $entityManager->persist($annonce);
         $entityManager->flush();
@@ -599,41 +600,6 @@ class ConducteurController extends AbstractController
         }
         
         $trajetId = $request->request->get('trajet_id');
-        $titre = $request->request->get('titre');
-        $description = $request->request->get('description');
-        $departureDate = $request->request->get('departure_date');
-        
-        // Validation du titre: maximum 25 caractères alphanumériques
-        if (strlen($titre) > 25) {
-            $this->addFlash('error', 'Le titre ne doit pas dépasser 25 caractères.');
-            return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
-        }
-        
-        // Vérifier que le titre ne contient que des caractères alphanumériques et des espaces
-        if (!preg_match('/^[a-zA-Z0-9\s\-àáâäãåąčćęèéêëėįìíîïłńòóôöõøùúûüųūÿýżźñçšžÀÁÂÄÃÅĄĆČĖĘÈÉÊËÌÍÎÏĮŁŃÒÓÔÖÕØÙÚÛÜŲŪŸÝŻŹÑßÇŒÆŠŽ,.\']+$/', $titre)) {
-            $this->addFlash('error', 'Le titre ne doit contenir que des caractères alphanumériques.');
-            return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
-        }
-        
-        // Validation de la date: doit être dans le futur
-        $dateObj = new \DateTime($departureDate);
-        $now = new \DateTime();
-        if ($dateObj < $now) {
-            $this->addFlash('error', 'La date de départ ne peut pas être dans le passé.');
-            return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
-        }
-        
-        // Validation du contenu: pas de mots inappropriés dans la description
-        if (!empty($description)) {
-            $inappropriateWords = ['fuck', 'fuck you', 'bitch', 'asshole', 'shit', 'pute', 'connard', 'putain', 'merde'];
-            foreach ($inappropriateWords as $word) {
-                if (stripos($description, $word) !== false) {
-                    $this->addFlash('error', 'La description contient des termes inappropriés. Veuillez utiliser un langage respectueux.');
-                    return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
-                }
-            }
-        }
-        
         $trajet = $trajetRepository->find($trajetId);
         
         if (!$trajet) {
@@ -641,11 +607,11 @@ class ConducteurController extends AbstractController
             return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
         }
         
-        $annonce->setTitre($titre);
-        $annonce->setDescription($description);
+        $annonce->setTitre($request->request->get('titre'));
+        $annonce->setDescription($request->request->get('description'));
         $annonce->setTrajet($trajet);
         $annonce->setAvailableSeats((int)$request->request->get('available_seats'));
-        $annonce->setDepartureDate($dateObj);
+        $annonce->setDepartureDate(new \DateTime($request->request->get('departure_date')));
         
         $entityManager->flush();
         
@@ -1163,7 +1129,7 @@ class ConducteurController extends AbstractController
         
         foreach ($annonces as $annonce) {
             $reservations = $reservationRepository->findBy([
-                'annonceEvent' => $annonce,
+                'annonceEvent' => $annonce->getId(),
                 'type' => 'EVENT'
             ]);
             
@@ -1311,7 +1277,7 @@ class ConducteurController extends AbstractController
         }
 
         // Vérifier que la réservation est bien pour un événement
-        $annonceEvent = $reservation->getAnnonceEvent();
+        $annonceEvent = $annonceEventRepository->find($reservation->getAnnonceEvent());
         if (!$annonceEvent) {
             $this->addFlash('error', 'Annonce d\'événement non trouvée');
             return $this->redirectToRoute('app_conducteur_reservations');
@@ -1339,7 +1305,7 @@ class ConducteurController extends AbstractController
         $user = $this->getUser();
         
         // Récupérer les participations où l'utilisateur est conducteur
-        $participations = $participationRepository->findByConducteurExplicit($user->getId());
+        $participations = $participationRepository->findByConducteur($user->getId());
         
         // Organiser les données pour l'affichage
         $participationsData = [];
@@ -1367,7 +1333,7 @@ class ConducteurController extends AbstractController
         $user = $this->getUser();
         
         // Récupérer toutes les participations de l'utilisateur (participant et conducteur)
-        $participations = $participationRepository->findAllForUserExplicit($user->getId());
+        $participations = $participationRepository->findAllForUser($user->getId());
         
         // Reformater les données pour l'affichage
         $formattedParticipations = [];
@@ -1470,7 +1436,10 @@ class ConducteurController extends AbstractController
         $isParticipant = false;
         
         // Vérifier si l'utilisateur participe déjà à l'événement
-        $participation = $participationRepository->findByUserAndEvent($user->getId(), $id);
+        $participation = $participationRepository->findOneBy([
+            'event' => $event,
+            'utilisateur' => $user
+        ]);
         
         if ($participation) {
             $isParticipant = true;
@@ -1483,7 +1452,7 @@ class ConducteurController extends AbstractController
     }
 
     #[Route('/voiture/add', name: 'app_conducteur_voiture_add')]
-    public function addVoiture(Request $request, EntityManagerInterface $entityManager, CarRepository $carRepository): Response
+    public function addVoiture(Request $request, EntityManagerInterface $entityManager, CarApiService $carApiService): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -1491,7 +1460,7 @@ class ConducteurController extends AbstractController
         $user = $this->getUser();
 
         // Check if user already has a car
-        $existingCar = $carRepository->findCarByUserId($user->getId());
+        $existingCar = $entityManager->getRepository(Car::class)->findOneBy(['userId' => $user->getId()]);
         if ($existingCar) {
             $this->addFlash('info', 'Vous avez déjà enregistré une voiture. Vous pouvez la modifier ci-dessous.');
             return $this->redirectToRoute('app_conducteur_voiture');
@@ -1529,30 +1498,10 @@ class ConducteurController extends AbstractController
             $car->setDateImatriculation(new \DateTime($dateImatriculation));
             $car->setDescription($description ?? '');
             $car->setCategorie($categorie);
+            $car->setUserId($user->getId());
             
             $entityManager->persist($car);
             $entityManager->flush();
-            
-            // Link the car to the user through a placeholder Annonce entry if no announcements exist
-            $existingAnnonces = $entityManager->getRepository('App\Entity\Annonce')
-                ->findBy(['driver_id' => $user->getId(), 'car_id' => $car->getId()]);
-                
-            if (empty($existingAnnonces)) {
-                // Create a placeholder announcement to link the car to the user
-                $annonce = new Annonce();
-                $annonce->setTitre('Voiture enregistrée');
-                $annonce->setDescription('Cette annonce a été créée automatiquement lors de l\'enregistrement de votre voiture.');
-                $annonce->setStatus('draft');
-                $annonce->setDriverId($user->getId());
-                $annonce->setCarId($car->getId());
-                $annonce->setDatePublication(new \DateTime());
-                $annonce->setDepartureDate(new \DateTime());
-                $annonce->setAvailableSeats(1);
-                $annonce->setEventId(0); // Set to 0 as it's not associated with any event
-                
-                $entityManager->persist($annonce);
-                $entityManager->flush();
-            }
             
             $this->addFlash('success', 'Votre voiture a été ajoutée avec succès !');
             return $this->redirectToRoute('app_conducteur_voiture');
@@ -1561,23 +1510,27 @@ class ConducteurController extends AbstractController
         // Get categories for the form
         $categories = $entityManager->getRepository(\App\Entity\Categorie::class)->findAll();
         
+        // Get car makes from API
+        $carMakes = $carApiService->getCarMakes();
+        
         return $this->render('conducteur/voiture_add.html.twig', [
             'user' => $user,
             'categories' => $categories,
-            'car' => null // Pass null as the 'car' variable for the layout
+            'car' => null, // Pass null as the 'car' variable for the layout
+            'carMakes' => $carMakes,
         ]);
     }
     
     #[Route('/voiture/edit', name: 'app_conducteur_voiture_edit')]
-    public function editVoiture(Request $request, EntityManagerInterface $entityManager, CarRepository $carRepository): Response
+    public function editVoiture(Request $request, EntityManagerInterface $entityManager, CarRepository $carRepository, CarApiService $carApiService): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
         
         $user = $this->getUser();
         
-        // Get the user's car using our safe method
-        $voiture = $carRepository->findCarByUserId($user->getId());
+        // Get the user's car
+        $voiture = $carRepository->findOneBy(['userId' => $user->getId()]);
         
         if (!$voiture) {
             $this->addFlash('error', 'Vous n\'avez pas encore de voiture enregistrée.');
@@ -1615,11 +1568,82 @@ class ConducteurController extends AbstractController
         // Get categories for the form
         $categories = $entityManager->getRepository(\App\Entity\Categorie::class)->findAll();
         
+        // Get car makes from API
+        $carMakes = $carApiService->getCarMakes();
+        
         return $this->render('conducteur/voiture_edit.html.twig', [
             'user' => $user,
             'voiture' => $voiture,
             'categories' => $categories,
-            'car' => $voiture // Pass the car data for the layout as well
+            'car' => $voiture, // Pass the car data for the layout as well
+            'carMakes' => $carMakes,
         ]);
+    }
+
+    #[Route('/voiture/delete', name: 'app_conducteur_voiture_delete', methods: ['POST'])]
+    public function deleteVoiture(Request $request, EntityManagerInterface $entityManager, CarRepository $carRepository): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        // Validate CSRF token
+        if (!$this->isCsrfTokenValid('delete-car', $request->request->get('_token'))) {
+            $this->addFlash('error', 'Token CSRF invalide.');
+            return $this->redirectToRoute('app_conducteur_voiture');
+        }
+        
+        $user = $this->getUser();
+        
+        // Get the user's car
+        $voiture = $carRepository->findOneBy(['userId' => $user->getId()]);
+        
+        if (!$voiture) {
+            $this->addFlash('error', 'Aucune voiture trouvée à supprimer.');
+            return $this->redirectToRoute('app_conducteur_voiture');
+        }
+        
+        // Check if the car is used in any active announcements - Annonce entity
+        $annonceRepository = $entityManager->getRepository(\App\Entity\Annonce::class);
+        $activeAnnouncements = $annonceRepository->findBy([
+            'car_id' => $voiture->getId(),
+            'status' => ['ouvert', 'plein'] // Only check active announcements
+        ]);
+        
+        if (count($activeAnnouncements) > 0) {
+            $this->addFlash('error', 'Cette voiture est utilisée dans des annonces actives. Veuillez d\'abord terminer ou supprimer ces annonces.');
+            return $this->redirectToRoute('app_conducteur_voiture');
+        }
+        
+        // Check if the car is used in any active event announcements - AnnonceEvent entity
+        $annonceEventRepository = $entityManager->getRepository(\App\Entity\AnnonceEvent::class);
+        $activeEventAnnouncements = $annonceEventRepository->findBy([
+            'carId' => $voiture->getId(),
+            'status' => ['ouvert', 'plein'] // Only check active announcements
+        ]);
+        
+        if (count($activeEventAnnouncements) > 0) {
+            $this->addFlash('error', 'Cette voiture est utilisée dans des annonces d\'événements actives. Veuillez d\'abord terminer ou supprimer ces annonces.');
+            return $this->redirectToRoute('app_conducteur_voiture');
+        }
+
+        try {
+            // Remove the car
+            $entityManager->remove($voiture);
+            $entityManager->flush();
+            
+            $this->addFlash('success', 'Votre voiture a été supprimée avec succès.');
+        } catch (\Exception $e) {
+            // Handle database errors
+            $this->addFlash('error', 'Une erreur est survenue lors de la suppression de la voiture: ' . $e->getMessage());
+        }
+        
+        return $this->redirectToRoute('app_conducteur_voiture');
+    }
+
+    #[Route('/api/car-models/{makeId}', name: 'app_api_car_models', methods: ['GET'])]
+    public function getCarModels(string $makeId, CarApiService $carApiService): JsonResponse
+    {
+        $models = $carApiService->getCarModels($makeId);
+        return new JsonResponse($models);
     }
 } 

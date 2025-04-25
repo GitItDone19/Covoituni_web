@@ -11,8 +11,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Doctrine\ORM\EntityManagerInterface;
-use App\Repository\ReclamationRepository;
-use App\Service\NotificationService;
 
 #[Route('/reclamation')]
 class ReclamationController extends AbstractController
@@ -37,14 +35,8 @@ class ReclamationController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_passager_reclamation_show', methods: ['GET'])]
-    public function show(int $id, ReclamationRepository $reclamationRepository): Response
+    public function show(Reclamation $reclamation): Response
     {
-        $reclamation = $reclamationRepository->find($id);
-        
-        if (!$reclamation) {
-            throw $this->createNotFoundException('Réclamation non trouvée');
-        }
-        
         // Vérifier que l'utilisateur est bien le propriétaire de la réclamation
         if ($reclamation->getUser() !== $this->getUser()) {
             throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à voir cette réclamation');
@@ -58,7 +50,7 @@ class ReclamationController extends AbstractController
     }
 
     #[Route('/new', name: 'app_passager_reclamation_new')]
-    public function new(Request $request, NotificationService $notificationService): Response
+    public function new(Request $request): Response
     {
         $reclamation = new Reclamation();
         $form = $this->createForm(ReclamationType::class, $reclamation);
@@ -67,17 +59,16 @@ class ReclamationController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $reclamation->setUser($this->getUser());
             $reclamation->setDate(new \DateTime());
-            $reclamation->setStatus('pending');
+            $reclamation->setState('pending');
             
             $entityManager = $this->doctrine->getManager();
             $entityManager->persist($reclamation);
             $entityManager->flush();
-            
-            // Notify admins about the new reclamation
-            $notificationService->notifyAdminNewReclamation($reclamation);
 
             $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
             return $this->redirectToRoute('app_passager_mes_reclamations');
+        } elseif ($form->isSubmitted() && !$form->isValid()) {
+            $this->addFlash('error', 'Veuillez corriger les erreurs dans le formulaire');
         }
 
         return $this->render('passager/reclamation/new.html.twig', [
@@ -87,21 +78,15 @@ class ReclamationController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'app_passager_reclamation_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, int $id, ReclamationRepository $reclamationRepository): Response
+    public function edit(Request $request, Reclamation $reclamation): Response
     {
-        $reclamation = $reclamationRepository->find($id);
-        
-        if (!$reclamation) {
-            throw $this->createNotFoundException('Réclamation non trouvée');
-        }
-        
         // Vérifier que l'utilisateur est bien le propriétaire de la réclamation
         if ($reclamation->getUser() !== $this->getUser()) {
             throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à modifier cette réclamation');
         }
         
         // Vérifier que la réclamation est toujours en attente
-        if ($reclamation->getStatus() !== 'pending') {
+        if ($reclamation->getState() !== 'pending') {
             $this->addFlash('error', 'Vous ne pouvez pas modifier une réclamation qui a déjà été traitée');
             return $this->redirectToRoute('app_passager_reclamation_show', ['id' => $reclamation->getId()]);
         }
@@ -114,6 +99,8 @@ class ReclamationController extends AbstractController
             
             $this->addFlash('success', 'Votre réclamation a été mise à jour avec succès');
             return $this->redirectToRoute('app_passager_reclamation_show', ['id' => $reclamation->getId()]);
+        } elseif ($form->isSubmitted() && !$form->isValid()) {
+            $this->addFlash('error', 'Veuillez corriger les erreurs dans le formulaire');
         }
 
         return $this->render('passager/reclamation/edit.html.twig', [
@@ -124,17 +111,11 @@ class ReclamationController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_reclamation_delete', methods: ['POST'])]
-    public function delete(Request $request, int $id, ReclamationRepository $reclamationRepository, EntityManagerInterface $entityManager): Response
+    public function delete(Request $request, Reclamation $reclamation, EntityManagerInterface $entityManager): Response
     {
-        $reclamation = $reclamationRepository->find($id);
-        
-        if (!$reclamation) {
-            throw $this->createNotFoundException('Réclamation non trouvée');
-        }
-        
         // Seul le propriétaire peut supprimer une réclamation en état "pending"
         if (!$this->isGranted('ROLE_ADMIN') && 
-            ($reclamation->getUser() !== $this->getUser() || $reclamation->getStatus() !== 'pending')) {
+            ($reclamation->getUser() !== $this->getUser() || $reclamation->getState() !== 'pending')) {
             throw new AccessDeniedException('You cannot delete this reclamation');
         }
         

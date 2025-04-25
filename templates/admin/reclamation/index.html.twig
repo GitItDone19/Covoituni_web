@@ -1,26 +1,14 @@
-{% extends 'layouts/admin_layout.html.twig' %}
+{% extends 'base.html.twig' %}
 
 {% block title %}Administration des réclamations{% endblock %}
 
 {% block body %}
-    <div class="max-w-7xl mx-auto">
-        <!-- Header -->
-        <div class="mb-8 animate-fade-in">
-            <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                <div>
-                    <h1 class="text-3xl font-bold text-admin-primary">Gestion des Réclamations</h1>
-                    <p class="text-gray-500 mt-1">Liste de toutes les réclamations des utilisateurs</p>
-                    <div class="h-1 w-32 bg-gradient-to-r from-admin-primary to-admin-secondary rounded mt-2"></div>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <div class="flex items-center bg-admin-light text-admin-primary rounded-lg px-3 py-1.5 text-sm font-medium">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        Total: {{ reclamations|length }}
-                    </div>
-                </div>
-            </div>
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header with animation -->
+        <div class="mb-10 animate-fade-in-down">
+            <h1 class="text-4xl font-extrabold text-gray-800 mb-2 bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">Gestion des réclamations</h1>
+            <p class="text-gray-600 text-lg">Visualisez et gérez toutes les réclamations des utilisateurs</p>
+            <div class="h-1 w-32 bg-gradient-to-r from-primary to-blue-600 rounded mt-4"></div>
         </div>
         
         <!-- Alert messages with improved animations -->
@@ -175,15 +163,12 @@
                         </div>
                         
                         <div class="flex justify-between items-center mb-5">
-                            <div class="text-xs text-gray-500 flex items-center bg-gray-100 rounded-full px-3 py-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
+                            <div class="text-xs text-gray-500">
                                 {{ reclamation.date|date('d/m/Y H:i') }}
                             </div>
                             
-                            <div class="text-xs font-medium {% if reclamation.reply %}text-green-600{% else %}text-red-600{% endif %} bg-{% if reclamation.reply %}green{% else %}red{% endif %}-50 rounded-full px-3 py-1 flex items-center">
-                                {% if reclamation.reply %}
+                            <div class="text-xs font-medium {% if reclamation.reponses is not empty %}text-green-600{% else %}text-red-600{% endif %} bg-{% if reclamation.reponses is not empty %}green{% else %}red{% endif %}-50 rounded-full px-3 py-1 flex items-center">
+                                {% if reclamation.reponses is not empty %}
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
@@ -209,7 +194,7 @@
                                 </span>
                             </a>
                             
-                            {% if not reclamation.reply or reclamation.state == 'in_progress' %}
+                            {% if reclamation.reponses is empty or reclamation.state == 'in_progress' %}
                                 <a href="{{ path('app_admin_reclamation_reply', {'id': reclamation.id}) }}" 
                                    class="text-center text-sm font-medium text-orange-600 hover:text-white bg-orange-50 hover:bg-orange-600 transition-colors duration-300 py-2.5 px-4 rounded-lg shadow-sm hover:shadow flex-1 transform hover:scale-105">
                                     <span class="flex items-center justify-center">
@@ -254,15 +239,6 @@
                 </a>
             </div>
         {% endif %}
-
-        <!-- Add this migration button somewhere in the actions area of the page -->
-        <a href="{{ path('admin_reclamations_migrate_replies') }}" 
-           class="ml-2 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-300 shadow-md">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-            </svg>
-            Migrer les anciennes réponses
-        </a>
     </div>
 {% endblock %}
 

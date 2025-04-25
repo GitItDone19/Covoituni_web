@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\ReponseRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -14,28 +15,34 @@ class Reponse
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(type: 'text')]
-    #[Assert\NotBlank(message: 'Le contenu de la réponse ne peut pas être vide')]
-    private ?string $content = null;
-
-    #[ORM\Column(type: 'datetime')]
-    private ?\DateTimeInterface $date = null;
-
-    #[ORM\ManyToOne(targetEntity: Reclamation::class, inversedBy: 'reponses')]
+    #[ORM\ManyToOne(inversedBy: 'reponses')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Reclamation $reclamation = null;
 
-    #[ORM\Column(type: 'string', length: 50, nullable: true)]
-    private ?string $admin_username = null;
+    #[ORM\Column(type: Types::TEXT)]
+    #[Assert\NotBlank(message: "Le contenu de la réponse est obligatoire")]
+    #[Assert\Length(
+        min: 10,
+        max: 5000,
+        minMessage: "La réponse doit contenir au moins {{ limit }} caractères",
+        maxMessage: "La réponse ne peut pas dépasser {{ limit }} caractères"
+    )]
+    private ?string $content = null;
 
-    // Used for aliasing in Twig templates for backward compatibility
-    public $t0;
+    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    private ?\DateTimeInterface $date = null;
+
+    #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: "Le nom d'utilisateur de l'administrateur est obligatoire")]
+    #[Assert\Length(
+        max: 255,
+        maxMessage: "Le nom d'utilisateur ne peut pas dépasser {{ limit }} caractères"
+    )]
+    private ?string $admin_username = null;
 
     public function __construct()
     {
         $this->date = new \DateTime();
-        // Initialize t0 as a reference to $this
-        $this->t0 = $this;
     }
 
     public function getId(): ?int
@@ -43,14 +50,27 @@ class Reponse
         return $this->id;
     }
 
+    public function getReclamation(): ?Reclamation
+    {
+        return $this->reclamation;
+    }
+
+    public function setReclamation(?Reclamation $reclamation): static
+    {
+        $this->reclamation = $reclamation;
+
+        return $this;
+    }
+
     public function getContent(): ?string
     {
         return $this->content;
     }
 
-    public function setContent(string $content): self
+    public function setContent(string $content): static
     {
         $this->content = $content;
+
         return $this;
     }
 
@@ -59,20 +79,10 @@ class Reponse
         return $this->date;
     }
 
-    public function setDate(\DateTimeInterface $date): self
+    public function setDate(\DateTimeInterface $date): static
     {
         $this->date = $date;
-        return $this;
-    }
 
-    public function getReclamation(): ?Reclamation
-    {
-        return $this->reclamation;
-    }
-
-    public function setReclamation(?Reclamation $reclamation): self
-    {
-        $this->reclamation = $reclamation;
         return $this;
     }
 
@@ -81,9 +91,10 @@ class Reponse
         return $this->admin_username;
     }
 
-    public function setAdminUsername(?string $admin_username): self
+    public function setAdminUsername(string $admin_username): static
     {
         $this->admin_username = $admin_username;
+
         return $this;
     }
 } 

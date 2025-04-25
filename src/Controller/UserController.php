@@ -10,6 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/user')]
 class UserController extends AbstractController
@@ -39,7 +40,7 @@ class UserController extends AbstractController
     }
 
     #[Route('/profile/edit', name: 'app_user_edit_profile')]
-    public function editProfile(Request $request): Response
+    public function editProfile(Request $request, ValidatorInterface $validator, EntityManagerInterface $entityManager): Response
     {
         $user = $this->getUser();
         
@@ -49,16 +50,91 @@ class UserController extends AbstractController
 
         if ($request->isMethod('POST')) {
             try {
+                // Récupérer les données du formulaire
+                $nom = $request->request->get('nom');
+                $prenom = $request->request->get('prenom');
+                $username = $request->request->get('username');
+                $tel = $request->request->get('tel');
+                $email = $request->request->get('email', $user->getEmail());  // Garder l'email existant si non fourni
+                
+                // Vérifier que les champs requis ne sont pas vides
+                if (empty($nom) || empty($prenom) || empty($username) || empty($tel) || empty($email)) {
+                    $this->addFlash('error', 'Tous les champs sont obligatoires');
+                    return $this->render('user/edit_profile.html.twig', [
+                        'user' => $user,
+                    ]);
+                }
+                
+                // Vérifier l'unicité du nom d'utilisateur
+                if ($username !== $user->getUsername()) {
+                    $existingUser = $entityManager->getRepository(\App\Entity\Utilisateur::class)->findOneBy(['username' => $username]);
+                    if ($existingUser && $existingUser->getId() !== $user->getId()) {
+                        $this->addFlash('error', 'Ce nom d\'utilisateur est déjà utilisé');
+                        return $this->render('user/edit_profile.html.twig', [
+                            'user' => $user,
+                        ]);
+                    }
+                }
+                
+                // Vérifier l'unicité de l'email
+                if ($email !== $user->getEmail()) {
+                    $existingUser = $entityManager->getRepository(\App\Entity\Utilisateur::class)->findOneBy(['email' => $email]);
+                    if ($existingUser && $existingUser->getId() !== $user->getId()) {
+                        $this->addFlash('error', 'Cet email est déjà utilisé');
+                        return $this->render('user/edit_profile.html.twig', [
+                            'user' => $user,
+                        ]);
+                    }
+                    $user->setEmail($email);
+                }
+                
+                // Mettre à jour l'utilisateur
+                $user->setNom($nom);
+                $user->setPrenom($prenom);
+                $user->setUsername($username);
+                $user->setTel($tel);
+                
+                // Valider l'entité avec le validateur
+                $errors = $validator->validate($user);
+                
+                if (count($errors) > 0) {
+                    // S'il y a des erreurs de validation, afficher le premier message d'erreur
+                    $this->addFlash('error', $errors[0]->getMessage());
+                    return $this->render('user/edit_profile.html.twig', [
+                        'user' => $user,
+                    ]);
+                }
+                
                 $data = [
-                    'nom' => $request->request->get('nom'),
-                    'prenom' => $request->request->get('prenom'),
-                    'username' => $request->request->get('username'),
-                    'tel' => $request->request->get('tel'),
+                    'nom' => $nom,
+                    'prenom' => $prenom,
+                    'username' => $username,
+                    'tel' => $tel,
+                    'email' => $email,
                 ];
 
                 // Handle profile image upload
                 $profileImage = $request->files->get('profileImage');
                 if ($profileImage) {
+                    // Valider le type de fichier
+                    $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                    $mimeType = $profileImage->getMimeType();
+                    
+                    if (!in_array($mimeType, $allowedMimeTypes)) {
+                        $this->addFlash('error', 'Le format de l\'image n\'est pas valide. Formats acceptés: JPG, PNG, GIF, WEBP');
+                        return $this->render('user/edit_profile.html.twig', [
+                            'user' => $user,
+                        ]);
+                    }
+                    
+                    // Valider la taille du fichier (max 2MB)
+                    if ($profileImage->getSize() > 2 * 1024 * 1024) {
+                        $this->addFlash('error', 'L\'image ne doit pas dépasser 2MB');
+                        return $this->render('user/edit_profile.html.twig', [
+                            'user' => $user,
+                        ]);
+                    }
+                    
                     // Define upload directory
                     $uploadsDirectory = $this->getParameter('kernel.project_dir') . '/public/uploads/profile_images';
                     
@@ -93,7 +169,7 @@ class UserController extends AbstractController
     }
 
     #[Route('/profile/change-password', name: 'app_user_change_password')]
-    public function changePassword(Request $request): Response
+    public function changePassword(Request $request, ValidatorInterface $validator): Response
     {
         $user = $this->getUser();
         
@@ -105,9 +181,38 @@ class UserController extends AbstractController
             $currentPassword = $request->request->get('current_password');
             $newPassword = $request->request->get('new_password');
             $confirmPassword = $request->request->get('confirm_password');
+            
+            // Vérification des champs vides
+            if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
+                $this->addFlash('error', 'Tous les champs sont obligatoires');
+                return $this->render('user/change_password.html.twig');
+            }
+            
+            // Vérification de la longueur du mot de passe
+            if (strlen($newPassword) < 8) {
+                $this->addFlash('error', 'Le nouveau mot de passe doit contenir au moins 8 caractères');
+                return $this->render('user/change_password.html.twig');
+            }
+            
+            // Vérification de la complexité du mot de passe
+            $hasLetter = preg_match('/[a-zA-Z]/', $newPassword);
+            $hasNumber = preg_match('/\d/', $newPassword);
+            $hasSpecialChar = preg_match('/[^a-zA-Z\d]/', $newPassword);
+            
+            if (!$hasLetter || !$hasNumber || !$hasSpecialChar) {
+                $this->addFlash('error', 'Le mot de passe doit contenir au moins une lettre, un chiffre et un caractère spécial');
+                return $this->render('user/change_password.html.twig');
+            }
+            
+            // Vérification que le nouveau mot de passe est différent de l'ancien
+            if ($currentPassword === $newPassword) {
+                $this->addFlash('error', 'Le nouveau mot de passe doit être différent de l\'ancien');
+                return $this->render('user/change_password.html.twig');
+            }
 
             if ($newPassword !== $confirmPassword) {
-                $this->addFlash('error', 'New passwords do not match');
+                $this->addFlash('error', 'Les nouveaux mots de passe ne correspondent pas');
+                return $this->render('user/change_password.html.twig');
             } else {
                 try {
                     $success = $this->userService->changePassword(
@@ -117,13 +222,15 @@ class UserController extends AbstractController
                     );
 
                     if ($success) {
-                        $this->addFlash('success', 'Password changed successfully');
+                        $this->addFlash('success', 'Mot de passe modifié avec succès');
                         return $this->redirectToRoute('app_user_profile');
                     } else {
-                        $this->addFlash('error', 'Current password is incorrect');
+                        $this->addFlash('error', 'Le mot de passe actuel est incorrect');
+                        return $this->render('user/change_password.html.twig');
                     }
                 } catch (\Exception $e) {
                     $this->addFlash('error', $e->getMessage());
+                    return $this->render('user/change_password.html.twig');
                 }
             }
         }

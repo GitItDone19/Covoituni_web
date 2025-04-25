@@ -173,6 +173,10 @@
                                                                 </button>
                                                             </form>
                                                         </div>
+                                                    {% elseif reservation.status == 'ACCEPTED' %}
+                                                        <a href="{{ path('app_chat_conversation', {'reservationId': reservation.id, 'type': 'EVENT'}) }}" class="inline-flex items-center text-primary hover:text-primary-dark">
+                                                            <i class="fas fa-comments mr-1"></i> Discuter
+                                                        </a>
                                                     {% else %}
                                                         <span class="text-gray-400">Aucune action disponible</span>
                                                     {% endif %}

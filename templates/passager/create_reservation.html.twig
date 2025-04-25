@@ -1,13 +1,13 @@
 {% extends 'layouts/user_layout.html.twig' %}
 
-{% block title %}Réserver une annonce{% endblock %}
+{% block title %}Réserver un trajet{% endblock %}
 
 {% block content %}
     <div class="w-full">
         <div class="glass-card bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-xl p-8 mb-8">
             <div class="flex justify-between items-center mb-6">
                 <div>
-                    <h1 class="text-3xl font-bold mb-2 text-gray-800">Réserver une annonce</h1>
+                    <h1 class="text-3xl font-bold mb-2 text-gray-800">Réserver un trajet</h1>
                     <p class="text-gray-600">Complétez votre réservation pour le trajet de {{ annonce.trajet.getDeparturePoint() }} à {{ annonce.trajet.getArrivalPoint() }}</p>
                 </div>
                 <a href="{{ path('app_passager_liste_annonce') }}" class="text-primary hover:text-primary-dark">

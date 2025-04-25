@@ -38,4 +38,17 @@ class ReponseRepository extends ServiceEntityRepository
             $this->getEntityManager()->flush();
         }
     }
+
+    /**
+     * Find responses by reclamation ID
+     */
+    public function findByReclamationId(int $reclamationId): array
+    {
+        return $this->createQueryBuilder('r')
+            ->andWhere('r.reclamation = :reclamationId')
+            ->setParameter('reclamationId', $reclamationId)
+            ->orderBy('r.date', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 } 

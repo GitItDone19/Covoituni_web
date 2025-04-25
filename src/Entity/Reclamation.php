@@ -18,11 +18,21 @@ class Reclamation
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Assert\NotBlank(message: "Le sujet ne peut pas être vide")]
+    #[Assert\NotBlank(message: "Le sujet est obligatoire")]
+    #[Assert\Length(
+        min: 5,
+        max: 255,
+        minMessage: "Le sujet doit contenir au moins {{ limit }} caractères",
+        maxMessage: "Le sujet ne peut pas dépasser {{ limit }} caractères"
+    )]
     private ?string $subject = null;
 
     #[ORM\Column(type: Types::TEXT)]
-    #[Assert\NotBlank(message: "La description ne peut pas être vide")]
+    #[Assert\NotBlank(message: "La description est obligatoire")]
+    #[Assert\Length(
+        min: 10,
+        minMessage: "La description doit contenir au moins {{ limit }} caractères",
+    )]
     private ?string $description = null;
 
     #[ORM\ManyToOne(inversedBy: 'reclamations')]
@@ -30,22 +40,16 @@ class Reclamation
     private ?Utilisateur $user = null;
 
     #[ORM\Column(length: 20, options: ["default" => "pending"])]
-    #[Assert\NotBlank]
+    #[Assert\NotBlank(message: "Le statut est obligatoire")]
     #[Assert\Choice(
         choices: ['pending', 'in_progress', 'resolved', 'rejected'],
-        message: "Choose a valid status: pending, in_progress, resolved, or rejected"
+        message: "Statut invalide. Les options disponibles sont: en attente, en cours, résolu, rejeté"
     )]
     // Note: All methods (getStatus/setStatus and getState/setState) use this property
     private ?string $status = "pending";
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $date = null;
-
-    /**
-     * @deprecated This field will be removed in future versions, use Reponse entity instead
-     */
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $reply = null;
 
     #[ORM\OneToMany(mappedBy: 'reclamation', targetEntity: Reponse::class, orphanRemoval: true)]
     private Collection $reponses;
@@ -143,24 +147,6 @@ class Reclamation
     }
 
     /**
-     * @deprecated Use getReponses() instead
-     */
-    public function getReply(): ?string
-    {
-        return $this->reply;
-    }
-
-    /**
-     * @deprecated Use addReponse() instead
-     */
-    public function setReply(?string $reply): static
-    {
-        $this->reply = $reply;
-
-        return $this;
-    }
-
-    /**
      * @return Collection<int, Reponse>
      */
     public function getReponses(): Collection
@@ -188,24 +174,5 @@ class Reclamation
         }
 
         return $this;
-    }
-
-    /**
-     * Get the most recent response
-     */
-    public function getLatestReponse(): ?Reponse
-    {
-        if ($this->reponses->isEmpty()) {
-            return null;
-        }
-
-        $latest = null;
-        foreach ($this->reponses as $reponse) {
-            if ($latest === null || $reponse->getDate() > $latest->getDate()) {
-                $latest = $reponse;
-            }
-        }
-
-        return $latest;
     }
 }
