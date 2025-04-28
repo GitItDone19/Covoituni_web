@@ -10,6 +10,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use App\Repository\AvisRepository;
 
 // Ne pas mettre de name ici pour éviter les conflits
 #[Route('/admin/reclamations')]
@@ -200,5 +201,34 @@ class ReclamationController extends AbstractController
         
         $this->addFlash('success', 'Le statut de la réclamation a été corrigé avec succès.');
         return $this->redirectToRoute('admin_reclamations_show', ['id' => $reclamation->getId()]);
+    }
+
+    #[Route('/admin/dashboard', name: 'app_admin_dashboard')]
+    public function dashboard(
+        ReclamationRepository $reclamationRepository,
+        AvisRepository $avisRepository
+    ): Response {
+        // Statistiques des réclamations
+        $reclamationStats = [
+            'total' => $reclamationRepository->count([]),
+            'pending' => $reclamationRepository->count(['state' => 'pending']),
+            'in_progress' => $reclamationRepository->count(['state' => 'in_progress']),
+            'resolved' => $reclamationRepository->count(['state' => 'resolved']),
+            'rejected' => $reclamationRepository->count(['state' => 'rejected'])
+        ];
+
+        // Statistiques des avis
+        $avisStats = [
+            'total' => $avisRepository->count([]),
+            'average_rating' => $avisRepository->getAverageRating(),
+            'rating_distribution' => $avisRepository->getRatingDistribution(),
+            'recent_count' => $avisRepository->countThisWeek()
+        ];
+
+        return $this->render('admin/dashboard.html.twig', [
+            'reclamationStats' => $reclamationStats,
+            'avisStats' => $avisStats,
+            'currentStatus' => null
+        ]);
     }
 } 

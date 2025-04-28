@@ -22,131 +22,40 @@ class AvisController extends AbstractController
     }
 
     #[Route('/avis/new', name: 'app_avis_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $entityManager): Response
+    public function new(Request $request, EntityManagerInterface $entityManager, AvisRepository $avisRepository): Response
     {
+        $user = $this->getUser();
+        if (!$user) {
+            $this->addFlash('error', 'Vous devez être connecté pour soumettre un avis.');
+            return $this->redirectToRoute('app_login');
+        }
+
         $avi = new Avis();
+        $avi->setPassager($user);
+        $avi->setDate(new \DateTime());
+        
         $form = $this->createForm(AvisType::class, $avi);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            // Check if the passenger has already submitted a review for this driver
+            $conducteur = $avi->getConducteur();
+            if ($conducteur && $avisRepository->hasReviewForDriver($user->getId(), $conducteur->getId())) {
+                $this->addFlash('error', 'Vous avez déjà soumis un avis pour ce conducteur.');
+                return $this->redirectToRoute('app_avis_index');
+            }
+
             $entityManager->persist($avi);
             $entityManager->flush();
 
-            $this->addFlash('success', 'The review has been created successfully.');
+            $this->addFlash('success', 'Votre avis a été créé avec succès.');
             return $this->redirectToRoute('app_avis_index', [], Response::HTTP_SEE_OTHER);
         }
 
-        // Try to find the right entity for drivers
-        $conducteurs = [];
-        
-        // Look for users with driver role/property
-        $userEntities = [
-            'App\Entity\Utilisateur',
-            'App\Entity\User',
-            'App\Entity\Compte',
-            'App\Entity\Account'
-        ];
-        
-        foreach ($userEntities as $entityClass) {
-            try {
-                if (class_exists($entityClass)) {
-                    $repository = $entityManager->getRepository($entityClass);
-                    $metadata = $entityManager->getClassMetadata($entityClass);
-                    $fields = $metadata->getFieldNames();
-                    
-                    // Check if this entity has a role or type field to filter drivers
-                    if (in_array('roles', $fields) || method_exists($entityClass, 'getRoles')) {
-                        // Entity has roles, find users with ROLE_DRIVER or similar
-                        $users = $repository->findAll();
-                        $filteredUsers = [];
-                        
-                        foreach ($users as $user) {
-                            if (method_exists($user, 'getRoles')) {
-                                $roles = $user->getRoles();
-                                if (in_array('ROLE_DRIVER', $roles) || in_array('ROLE_CONDUCTEUR', $roles)) {
-                                    $filteredUsers[] = $user;
-                                }
-                            }
-                        }
-                        
-                        if (!empty($filteredUsers)) {
-                            $conducteurs = $filteredUsers;
-                            break;
-                        }
-                    } else if (in_array('type', $fields) || method_exists($entityClass, 'getType')) {
-                        // Entity might have a type field to identify drivers
-                        $users = $repository->findBy(['type' => 'driver']);
-                        if (!empty($users)) {
-                            $conducteurs = $users;
-                            break;
-                        }
-                    } else if (in_array('isDriver', $fields) || method_exists($entityClass, 'isDriver')) {
-                        // Entity might have a boolean field for drivers
-                        $users = $repository->findBy(['isDriver' => true]);
-                        if (!empty($users)) {
-                            $conducteurs = $users;
-                            break;
-                        }
-                    } else {
-                        // No obvious way to filter, get all users as fallback
-                        $users = $repository->findAll();
-                        if (!empty($users)) {
-                            $conducteurs = $users;
-                            // Don't break here, keep looking for better entities
-                        }
-                    }
-                }
-            } catch (\Exception $e) {
-                // Continue to next entity
-                continue;
-            }
-        }
-        
-        // If no user-based drivers found, look for dedicated driver entities
-        if (empty($conducteurs)) {
-            $driverEntities = [
-                'App\Entity\Conducteur',
-                'App\Entity\Chauffeur',
-                'App\Entity\Driver'
-            ];
-            
-            foreach ($driverEntities as $entityClass) {
-                try {
-                    if (class_exists($entityClass)) {
-                        $drivers = $entityManager->getRepository($entityClass)->findAll();
-                        if (!empty($drivers)) {
-                            $conducteurs = $drivers;
-                            break;
-                        }
-                    }
-                } catch (\Exception $e) {
-                    // Continue to next entity
-                    continue;
-                }
-            }
-        }
-        
-        // If still no drivers found, provide a helpful debug message
-        if (empty($conducteurs)) {
-            $this->addFlash('error', 'Unable to load drivers. Please check your entity configuration.');
-            
-            // List available entities for debugging
-            $metadata = $entityManager->getMetadataFactory()->getAllMetadata();
-            $availableEntities = [];
-            foreach ($metadata as $classMetadata) {
-                $availableEntities[] = $classMetadata->getName();
-            }
-            
-            // Add list of found entities to the flash message
-            if (!empty($availableEntities)) {
-                $this->addFlash('info', 'Available entities: ' . implode(', ', $availableEntities));
-            }
-        }
-
-        return $this->render('passager/avis/new.html.twig', [
+        return $this->render('avis/new.html.twig', [
             'avi' => $avi,
             'form' => $form,
-            'conducteurs' => $conducteurs,
+            'user' => $user,
         ]);
     }
 

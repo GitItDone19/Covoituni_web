@@ -8,9 +8,25 @@ use App\Repository\UtilisateurRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
+<<<<<<< Updated upstream
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use App\Repository\AvisRepository;
+=======
+use App\Entity\Trajet;
+use App\Repository\TrajetRepository;
+use App\Repository\AnnonceRepository;
+use App\Entity\Annonce;
+use App\Entity\Reservation;
+use App\Entity\Reclamation;
+use App\Repository\ReservationRepository;
+use App\Repository\EventRepository;
+use App\Repository\AnnonceEventRepository;
+use App\Repository\EventParticipationRepository;
+use App\Entity\EventParticipation;
+use Symfony\Component\Security\Core\User\UserInterface;
+use App\Form\AvisType;
+>>>>>>> Stashed changes
 
 #[Route('/passager')]
 class PassagerController extends AbstractController
@@ -88,8 +104,9 @@ class PassagerController extends AbstractController
     }
     
     #[Route('/avis/submit', name: 'app_passager_avis_submit', methods: ['POST'])]
-    public function submitAvis(Request $request, EntityManagerInterface $entityManager, UtilisateurRepository $utilisateurRepository): Response
+    public function submitAvis(Request $request, EntityManagerInterface $entityManager, UserInterface $user, $id): Response
     {
+<<<<<<< Updated upstream
         $this->denyAccessUnlessGranted('ROLE_PASSAGER');
         
         $conducteurId = $request->request->get('driver');
@@ -103,24 +120,47 @@ class PassagerController extends AbstractController
         }
         
         $conducteur = $utilisateurRepository->find($conducteurId);
+=======
+        // Vérifier si l'utilisateur est bien un passager
+        if (!in_array('ROLE_PASSAGER', $user->getRoles())) {
+            $this->addFlash('error', 'Vous n\'avez pas les droits pour accéder à cette page');
+            return $this->redirectToRoute('app_login');
+        }
+
+        // Récupérer le conducteur
+        $conducteur = $entityManager->getRepository(Utilisateur::class)->find($id);
+>>>>>>> Stashed changes
         if (!$conducteur) {
-            $this->addFlash('error', 'Conducteur non trouvé');
+            throw $this->createNotFoundException('Conducteur non trouvé');
+        }
+
+        // Vérifier si le passager a déjà soumis un avis pour ce conducteur
+        $avisRepository = $entityManager->getRepository(Avis::class);
+        if ($avisRepository->hasReviewForDriver($user->getId(), $id)) {
+            $this->addFlash('error', 'Vous avez déjà soumis un avis pour ce conducteur');
             return $this->redirectToRoute('app_passager_avis');
         }
-        
-        // Créer un nouvel avis
+
         $avis = new Avis();
-        $avis->setPassager($this->getUser());
+        $avis->setPassager($user);
         $avis->setConducteur($conducteur);
-        $avis->setRating((int)$rating);
-        $avis->setCommentaire($comment);
         $avis->setDate(new \DateTime());
-        
-        $entityManager->persist($avis);
-        $entityManager->flush();
-        
-        $this->addFlash('success', 'Votre avis a été soumis avec succès');
-        return $this->redirectToRoute('app_passager_dashboard');
+
+        $form = $this->createForm(AvisType::class, $avis);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $entityManager->persist($avis);
+            $entityManager->flush();
+
+            $this->addFlash('success', 'Avis soumis avec succès');
+            return $this->redirectToRoute('app_passager_avis');
+        }
+
+        return $this->render('passager/avis/new.html.twig', [
+            'form' => $form->createView(),
+            'conducteur' => $conducteur,
+        ]);
     }
     
     #[Route('/reservation', name: 'app_passager_reservation')]
