@@ -66,7 +66,14 @@ class SecurityController extends AbstractController
                     $roleCode
                 );
 
-                $this->addFlash('success', 'Account created successfully! Please check your email to verify your account.');
+                // Check if we have a mailer service configured
+                if (property_exists($this->userService, 'mailer') && $this->userService->getMailer()) {
+                    $this->addFlash('success', 'Account created successfully! Please check your email to verify your account.');
+                } else {
+                    // If no mailer, just create the account without verification
+                    $this->addFlash('success', 'Account created successfully! You can now log in.');
+                }
+                
                 return $this->redirectToRoute('app_login');
 
             } catch (\Exception $e) {

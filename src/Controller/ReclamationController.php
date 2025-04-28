@@ -29,7 +29,8 @@ class ReclamationController extends AbstractController
         $reclamations = $this->doctrine->getRepository(Reclamation::class)->findBy(['user' => $user]);
         
         return $this->render('passager/reclamation/index.html.twig', [
-            'reclamations' => $reclamations
+            'reclamations' => $reclamations,
+            'user' => $user
         ]);
     }
 
@@ -44,6 +45,7 @@ class ReclamationController extends AbstractController
         return $this->render('passager/reclamation/show.html.twig', [
             'reclamation' => $reclamation,
             'edit_url' => $this->generateUrl('app_passager_reclamation_edit', ['id' => $reclamation->getId()]),
+            'user' => $this->getUser()
         ]);
     }
 
@@ -57,18 +59,21 @@ class ReclamationController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $reclamation->setUser($this->getUser());
             $reclamation->setDate(new \DateTime());
-            $reclamation->setStatus('pending');
+            $reclamation->setState('pending');
             
             $entityManager = $this->doctrine->getManager();
             $entityManager->persist($reclamation);
             $entityManager->flush();
 
             $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
-            return $this->redirectToRoute('app_passager_reclamation_index');
+            return $this->redirectToRoute('app_passager_mes_reclamations');
+        } elseif ($form->isSubmitted() && !$form->isValid()) {
+            $this->addFlash('error', 'Veuillez corriger les erreurs dans le formulaire');
         }
 
         return $this->render('passager/reclamation/new.html.twig', [
             'form' => $form->createView(),
+            'user' => $this->getUser()
         ]);
     }
 
@@ -81,7 +86,7 @@ class ReclamationController extends AbstractController
         }
         
         // Vérifier que la réclamation est toujours en attente
-        if ($reclamation->getStatus() !== 'pending') {
+        if ($reclamation->getState() !== 'pending') {
             $this->addFlash('error', 'Vous ne pouvez pas modifier une réclamation qui a déjà été traitée');
             return $this->redirectToRoute('app_passager_reclamation_show', ['id' => $reclamation->getId()]);
         }
@@ -94,11 +99,14 @@ class ReclamationController extends AbstractController
             
             $this->addFlash('success', 'Votre réclamation a été mise à jour avec succès');
             return $this->redirectToRoute('app_passager_reclamation_show', ['id' => $reclamation->getId()]);
+        } elseif ($form->isSubmitted() && !$form->isValid()) {
+            $this->addFlash('error', 'Veuillez corriger les erreurs dans le formulaire');
         }
 
         return $this->render('passager/reclamation/edit.html.twig', [
             'reclamation' => $reclamation,
             'form' => $form->createView(),
+            'user' => $this->getUser()
         ]);
     }
 
@@ -107,15 +115,17 @@ class ReclamationController extends AbstractController
     {
         // Seul le propriétaire peut supprimer une réclamation en état "pending"
         if (!$this->isGranted('ROLE_ADMIN') && 
-            ($reclamation->getUser() !== $this->getUser() || $reclamation->getStatus() !== 'pending')) {
+            ($reclamation->getUser() !== $this->getUser() || $reclamation->getState() !== 'pending')) {
             throw new AccessDeniedException('You cannot delete this reclamation');
         }
         
         if ($this->isCsrfTokenValid('delete'.$reclamation->getId(), $request->request->get('_token'))) {
             $entityManager->remove($reclamation);
             $entityManager->flush();
+            
+            $this->addFlash('success', 'Votre réclamation a été supprimée avec succès');
         }
 
-        return $this->redirectToRoute('app_reclamation_index', [], Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('app_passager_mes_reclamations');
     }
 } 

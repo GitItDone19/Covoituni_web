@@ -18,16 +18,44 @@ class ReclamationType extends AbstractType
         $builder
             ->add('subject', TextType::class, [
                 'label' => 'Sujet',
+                'required' => true,
                 'attr' => [
-                    'placeholder' => 'Entrez le sujet de votre réclamation'
-                ]
+                    'placeholder' => 'Entrez le sujet de votre réclamation',
+                    'minlength' => 5,
+                    'maxlength' => 255,
+                ],
+                'constraints' => [
+                    new NotBlank([
+                        'message' => 'Le sujet est obligatoire',
+                    ]),
+                    new Length([
+                        'min' => 5,
+                        'max' => 255,
+                        'minMessage' => 'Ce texte est trop court. Il doit contenir 5 caractères ou plus.',
+                        'maxMessage' => 'Ce texte est trop long. Il doit contenir 255 caractères ou moins.',
+                    ]),
+                ],
             ])
             ->add('description', TextareaType::class, [
                 'label' => 'Description',
+                'required' => true,
                 'attr' => [
+                    'placeholder' => 'Décrivez votre problème en détail...',
                     'rows' => 6,
-                    'placeholder' => 'Décrivez votre problème en détail...'
-                ]
+                    'minlength' => 5,
+                    'class' => 'ckeditor-enable',
+                ],
+                'constraints' => [
+                    new NotBlank([
+                        'message' => 'La description est obligatoire',
+                    ]),
+                    new Length([
+                        'min' => 5,
+                        'minMessage' => 'Ce texte est trop court. Il doit contenir 5 caractères ou plus.',
+                    ]),
+                ],
+                'ckeditor' => true,
+                'ckeditor_config' => 'default',
             ])
             // Les champs user, status et date sont gérés par le contrôleur
         ;
@@ -37,6 +65,9 @@ class ReclamationType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Reclamation::class,
+            'attr' => [
+                'novalidate' => 'novalidate', // Disable HTML5 validation to use Symfony validation
+            ],
         ]);
     }
 } 

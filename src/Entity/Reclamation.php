@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\ReclamationRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -16,51 +18,48 @@ class Reclamation
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Assert\NotBlank(message: "Subject cannot be empty")]
+    #[Assert\NotBlank(message: "Le sujet est obligatoire")]
     #[Assert\Length(
         min: 5,
         max: 255,
-        minMessage: "Subject must be at least {{ limit }} characters long",
-        maxMessage: "Subject cannot be longer than {{ limit }} characters"
+        minMessage: "Ce texte est trop court. Il doit contenir 5 caractères ou plus.",
+        maxMessage: "Ce texte est trop long. Il doit contenir 255 caractères ou moins."
     )]
     private ?string $subject = null;
 
     #[ORM\Column(type: Types::TEXT)]
-    #[Assert\NotBlank(message: "Description cannot be empty")]
+    #[Assert\NotBlank(message: "La description est obligatoire")]
     #[Assert\Length(
-        min: 10,
-        minMessage: "Description must be at least {{ limit }} characters long"
+        min: 5,
+        minMessage: "Ce texte est trop court. Il doit contenir 5 caractères ou plus."
     )]
     private ?string $description = null;
 
     #[ORM\ManyToOne(inversedBy: 'reclamations')]
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false)]
-    #[Assert\NotNull(message: "User must be specified")]
     private ?Utilisateur $user = null;
 
     #[ORM\Column(length: 20, options: ["default" => "pending"])]
-    #[Assert\NotBlank]
+    #[Assert\NotBlank(message: "Le statut est obligatoire")]
     #[Assert\Choice(
         choices: ['pending', 'in_progress', 'resolved', 'rejected'],
-        message: "Choose a valid status: pending, in_progress, resolved, or rejected"
+        message: "Statut invalide. Les options disponibles sont: en attente, en cours, résolu, rejeté"
     )]
+    // Note: All methods (getStatus/setStatus and getState/setState) use this property
     private ?string $status = "pending";
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $date = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Assert\Length(
-        max: 1000,
-        maxMessage: "Reply cannot be longer than {{ limit }} characters"
-    )]
-    private ?string $reply = null;
+    #[ORM\OneToMany(mappedBy: 'reclamation', targetEntity: Reponse::class, orphanRemoval: true)]
+    private Collection $reponses;
 
     public function __construct()
     {
         // Initialiser la date avec la date actuelle lors de la création
         $this->date = new \DateTime();
         $this->status = 'pending';
+        $this->reponses = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -104,6 +103,19 @@ class Reclamation
         return $this;
     }
 
+    public function getState(): ?string
+    {
+        return $this->status;
+    }
+
+    public function setState(string $state): static
+    {
+        $this->status = $state;
+
+        return $this;
+    }
+
+    // Add alias methods for consistency
     public function getStatus(): ?string
     {
         return $this->status;
@@ -112,6 +124,7 @@ class Reclamation
     public function setStatus(string $status): static
     {
         $this->status = $status;
+
         return $this;
     }
 
@@ -133,26 +146,33 @@ class Reclamation
         return $this;
     }
 
-    public function getReply(): ?string
+    /**
+     * @return Collection<int, Reponse>
+     */
+    public function getReponses(): Collection
     {
-        return $this->reply;
+        return $this->reponses;
     }
 
-    public function setReply(?string $reply): static
+    public function addReponse(Reponse $reponse): static
     {
-        $this->reply = $reply;
+        if (!$this->reponses->contains($reponse)) {
+            $this->reponses->add($reponse);
+            $reponse->setReclamation($this);
+        }
 
         return $this;
     }
 
-    public function getState(): ?string
+    public function removeReponse(Reponse $reponse): static
     {
-        return $this->status;
-    }
+        if ($this->reponses->removeElement($reponse)) {
+            // set the owning side to null (unless already changed)
+            if ($reponse->getReclamation() === $this) {
+                $reponse->setReclamation(null);
+            }
+        }
 
-    public function setState(string $state): self
-    {
-        $this->status = $state;
         return $this;
     }
 }

@@ -173,6 +173,64 @@
             // Event listeners
             passengerRadio.addEventListener('change', updateCardStyles);
             driverRadio.addEventListener('change', updateCardStyles);
+            
+            // Form validation
+            const form = document.querySelector('form');
+            const inputs = form.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="password"]');
+            
+            // Create validation message element for each input
+            inputs.forEach(input => {
+                const errorDiv = document.createElement('div');
+                errorDiv.classList.add('text-red-500', 'text-sm', 'mt-1', 'hidden');
+                errorDiv.innerText = 'Ce champ ne peut pas être vide';
+                input.parentNode.appendChild(errorDiv);
+                
+                // Check on blur
+                input.addEventListener('blur', function() {
+                    validateField(this);
+                });
+                
+                // Reset error on input
+                input.addEventListener('input', function() {
+                    const errorMessage = this.parentNode.querySelector('.text-red-500');
+                    errorMessage.classList.add('hidden');
+                    this.classList.remove('border-red-500');
+                });
+            });
+            
+            function validateField(field) {
+                const errorMessage = field.parentNode.querySelector('.text-red-500');
+                if (!field.value.trim()) {
+                    errorMessage.classList.remove('hidden');
+                    field.classList.add('border-red-500');
+                    return false;
+                } else {
+                    errorMessage.classList.add('hidden');
+                    field.classList.remove('border-red-500');
+                    return true;
+                }
+            }
+            
+            // Validate all fields on submit
+            form.addEventListener('submit', function(e) {
+                let isValid = true;
+                
+                inputs.forEach(input => {
+                    if (!validateField(input)) {
+                        isValid = false;
+                    }
+                });
+                
+                if (!isValid) {
+                    e.preventDefault();
+                    // Scroll to the first error
+                    const firstError = form.querySelector('.border-red-500');
+                    if (firstError) {
+                        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        firstError.focus();
+                    }
+                }
+            });
         });
     </script>
 {% endblock %} 

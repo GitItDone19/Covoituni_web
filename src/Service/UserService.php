@@ -65,8 +65,22 @@ class UserService
 
         // Find the Role entity by code
         $role = $this->entityManager->getRepository(\App\Entity\Role::class)->find($roleCode);
+        
+        // If role doesn't exist, create it
         if (!$role) {
-            throw new \Exception('Role not found. Please run /admin/setup-roles first.');
+            $role = new \App\Entity\Role();
+            $role->setCode($roleCode);
+            
+            // Set a readable label based on the role code
+            $labels = [
+                'ADMIN' => 'Administrator',
+                'PASSAGER' => 'Passenger',
+                'CONDUCTEUR' => 'Driver'
+            ];
+            
+            $role->setLibelle($labels[$roleCode] ?? $roleCode);
+            $this->entityManager->persist($role);
+            $this->entityManager->flush();
         }
 
         // Create new user
@@ -88,7 +102,7 @@ class UserService
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
-        // Send verification email
+        // Try to send verification email, but continue if it fails
         $this->sendVerificationEmail($user);
 
         return $user;
@@ -379,34 +393,41 @@ class UserService
      * Send verification email
      *
      * @param Utilisateur $user
-     * @return void
+     * @return bool Whether the email was sent
      */
-    private function sendVerificationEmail(Utilisateur $user): void
+    private function sendVerificationEmail(Utilisateur $user): bool
     {
         if (!$this->mailer || !$this->urlGenerator) {
-            return;
+            // If no mailer is configured, we'll just consider the email as verified
+            return false;
         }
 
-        // Use a temporary verification token stored in session
-        $verificationToken = bin2hex(random_bytes(16));
-        $_SESSION['email_verification_token_' . $user->getEmail()] = $verificationToken;
-
-        $verificationUrl = $this->urlGenerator->generate(
-            'app_verify_email',
-            ['token' => $verificationToken],
-            UrlGeneratorInterface::ABSOLUTE_URL
-        );
-
-        $email = (new Email())
-            ->from('noreply@covoituni.com')
-            ->to($user->getEmail())
-            ->subject('Verify your email address')
-            ->html("<p>Hello {$user->getPrenom()},</p>
-                   <p>Please confirm your email address by clicking the link below:</p>
-                   <p><a href=\"{$verificationUrl}\">Verify Email</a></p>
-                   <p>Thank you!</p>");
-
-        $this->mailer->send($email);
+        try {
+            // Use a temporary verification token stored in session
+            $verificationToken = bin2hex(random_bytes(16));
+            $_SESSION['email_verification_token_' . $user->getEmail()] = $verificationToken;
+    
+            $verificationUrl = $this->urlGenerator->generate(
+                'app_verify_email',
+                ['token' => $verificationToken],
+                UrlGeneratorInterface::ABSOLUTE_URL
+            );
+    
+            $email = (new Email())
+                ->from('noreply@covoituni.com')
+                ->to($user->getEmail())
+                ->subject('Verify your email address')
+                ->html("<p>Hello {$user->getPrenom()},</p>
+                       <p>Please confirm your email address by clicking the link below:</p>
+                       <p><a href=\"{$verificationUrl}\">Verify Email</a></p>
+                       <p>Thank you!</p>");
+    
+            $this->mailer->send($email);
+            return true;
+        } catch (\Exception $e) {
+            // Handle any exceptions that may occur during email sending
+            return false;
+        }
     }
 
     /**
@@ -539,5 +560,41 @@ class UserService
         $this->entityManager->flush();
 
         return true;
+    }
+
+    /**
+     * Find users by role
+     *
+     * @param string $roleCode
+     * @param int $page
+     * @param int $limit
+     * @return array
+     */
+    public function findUsersByRole(string $roleCode, int $page = 1, int $limit = 10): array
+    {
+        $offset = ($page - 1) * $limit;
+        
+        // Find users with the specified role code
+        $users = $this->userRepository->findBy(['roleCode' => $roleCode], ['createdAt' => 'DESC'], $limit, $offset);
+        
+        // Count total users with this role
+        $totalUsers = $this->userRepository->count(['roleCode' => $roleCode]);
+        
+        return [
+            'users' => $users,
+            'totalUsers' => $totalUsers,
+            'page' => $page,
+            'limit' => $limit
+        ];
+    }
+
+    /**
+     * Get the mailer service.
+     * 
+     * @return MailerInterface|null
+     */
+    public function getMailer(): ?MailerInterface
+    {
+        return $this->mailer;
     }
 } 

@@ -93,37 +93,4 @@ This project is licensed under the MIT License.
 
 ## Credits
 
-Developed for university students, by university students.
-
-## Profile Setup Wizard for Google Authentication
-
-A profile setup wizard has been implemented for users who authenticate via Google OAuth. This ensures that all required user information is collected after the first login.
-
-### Features:
-
-1. **Automated Redirection**: New Google-authenticated users are automatically redirected to the setup wizard after their first login.
-
-2. **Required Information Collection**:
-   - Username (pre-filled with Google name)
-   - Phone number
-   - Role selection (Passenger or Driver)
-
-3. **User Flow**:
-   - User logs in with Google
-   - For new users, minimal profile is created with information from Google
-   - User is redirected to setup wizard to complete profile
-   - After completion, user sees a welcome screen with their profile details
-   - User is then directed to the appropriate dashboard based on selected role
-
-### Implementation Details:
-
-- **OAuthController.php**: Modified to flag new users and redirect them to the setup wizard
-- **GoogleAuthenticator.php**: Updated to redirect new users to setup wizard after authentication
-- **SetupController.php**: New controller handling the profile setup process
-- **Templates**: Added new templates for the setup wizard and welcome page
-
-### Security Considerations:
-
-- New users have no role assigned until they complete the setup wizard
-- Role selection happens during setup, empowering users to choose their primary role
-- All user input is validated before saving 
+Developed for university students, by university students. 

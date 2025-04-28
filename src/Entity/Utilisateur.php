@@ -9,6 +9,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UtilisateurRepository::class)]
 #[ORM\Table(name: 'utilisateur')]
@@ -20,21 +21,74 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
     private ?int $id = null;
 
     #[ORM\Column(length: 50, unique: true)]
+    #[Assert\NotBlank(message: "Le nom d'utilisateur ne peut pas être vide")]
+    #[Assert\Length(
+        min: 3,
+        max: 50,
+        minMessage: "Le nom d'utilisateur doit contenir au moins {{ limit }} caractères",
+        maxMessage: "Le nom d'utilisateur ne peut pas dépasser {{ limit }} caractères"
+    )]
+    #[Assert\Regex(
+        pattern: "/^[a-zA-Z0-9_.-]+$/",
+        message: "Le nom d'utilisateur ne peut contenir que des lettres, des chiffres, des points, des tirets et des underscores"
+    )]
     private ?string $username = null;
 
     #[ORM\Column(length: 50)]
+    #[Assert\NotBlank(message: "Le nom ne peut pas être vide")]
+    #[Assert\Length(
+        min: 2,
+        max: 50,
+        minMessage: "Le nom doit contenir au moins {{ limit }} caractères",
+        maxMessage: "Le nom ne peut pas dépasser {{ limit }} caractères"
+    )]
+    #[Assert\Regex(
+        pattern: "/^[a-zA-ZÀ-ÿ\s'-]+$/",
+        message: "Le nom ne peut pas contenir des chiffres ou des caractères spéciaux"
+    )]
     private ?string $nom = null;
 
     #[ORM\Column(length: 50)]
+    #[Assert\NotBlank(message: "Le prénom ne peut pas être vide")]
+    #[Assert\Length(
+        min: 2,
+        max: 50,
+        minMessage: "Le prénom doit contenir au moins {{ limit }} caractères",
+        maxMessage: "Le prénom ne peut pas dépasser {{ limit }} caractères"
+    )]
+    #[Assert\Regex(
+        pattern: "/^[a-zA-ZÀ-ÿ\s'-]+$/",
+        message: "Le prénom ne peut pas contenir des chiffres ou des caractères spéciaux"
+    )]
     private ?string $prenom = null;
 
     #[ORM\Column(length: 20)]
+    #[Assert\NotBlank(message: "Le numéro de téléphone ne peut pas être vide")]
+    #[Assert\Regex(
+        pattern: "/^[2-9]\d{7}$/", 
+        message: "Le numéro de téléphone doit être au format tunisien (8 chiffres commençant par 2-9)"
+    )]
     private ?string $tel = null;
 
     #[ORM\Column(length: 100, unique: true)]
+    #[Assert\NotBlank(message: "L'email ne peut pas être vide")]
+    #[Assert\Email(message: "L'email '{{ value }}' n'est pas un email valide.")]
+    #[Assert\Length(
+        max: 100,
+        maxMessage: "L'email ne peut pas dépasser {{ limit }} caractères"
+    )]
     private ?string $email = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: "Le mot de passe ne peut pas être vide")]
+    #[Assert\Length(
+        min: 8,
+        minMessage: "Le mot de passe doit contenir au moins {{ limit }} caractères"
+    )]
+    #[Assert\Regex(
+        pattern: "/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/",
+        message: "Le mot de passe doit contenir au moins une lettre, un chiffre et un caractère spécial"
+    )]
     private ?string $mdp = null;
 
     #[ORM\Column(name: 'role_code', length: 50)]
@@ -62,11 +116,15 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\JoinColumn(name: 'role_code', referencedColumnName: 'code', nullable: false)]
     private ?Role $role = null;
 
+    #[ORM\OneToMany(mappedBy: 'conducteur', targetEntity: EventParticipation::class)]
+    private Collection $parrainages;
+
     public function __construct()
     {
         $this->reclamations = new ArrayCollection();
         $this->eventParticipations = new ArrayCollection();
         $this->createdAt = new \DateTime();
+        $this->parrainages = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -252,6 +310,29 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    /**
+     * Check if user is banned
+     * This is a virtual property that doesn't exist in the database
+     * 
+     * Note: This will be overridden by the UserBanService
+     */
+    public function getIsBanned(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Set user banned status
+     * This is a virtual property that doesn't exist in the database
+     * 
+     * Note: This will be overridden by the UserBanService
+     */
+    public function setIsBanned(bool $isBanned): static
+    {
+        // Handled by UserBanService
+        return $this;
+    }
+
     public function getRole(): ?Role
     {
         return $this->role;
@@ -318,6 +399,36 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($eventParticipation->getUtilisateur() === $this) {
                 $eventParticipation->setUtilisateur(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, EventParticipation>
+     */
+    public function getParrainages(): Collection
+    {
+        return $this->parrainages;
+    }
+
+    public function addParrainage(EventParticipation $eventParticipation): static
+    {
+        if (!$this->parrainages->contains($eventParticipation)) {
+            $this->parrainages->add($eventParticipation);
+            $eventParticipation->setConducteur($this);
+        }
+
+        return $this;
+    }
+
+    public function removeParrainage(EventParticipation $eventParticipation): static
+    {
+        if ($this->parrainages->removeElement($eventParticipation)) {
+            // set the owning side to null (unless already changed)
+            if ($eventParticipation->getConducteur() === $this) {
+                $eventParticipation->setConducteur(null);
             }
         }
 
