@@ -25,6 +25,10 @@ use App\Repository\TypeEventRepository;
 use App\Repository\AnnonceEventRepository;
 use App\Repository\CarRepository;
 use App\Repository\EventParticipationRepository;
+use App\Entity\Reclamation;
+use App\Service\CarApiService;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use App\Service\EmailService;
 
 #[Route('/conducteur')]
 class ConducteurController extends AbstractController
@@ -40,16 +44,32 @@ class ConducteurController extends AbstractController
     }
 
     #[Route('/dashboard', name: 'app_conducteur_dashboard')]
-    public function dashboard(CarRepository $carRepository): Response
+    public function dashboard(CarRepository $carRepository, ReservationRepository $reservationRepository, UtilisateurRepository $utilisateurRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
         
         $user = $this->getUser();
         
+        // Récupérer les réservations en attente
+        $pendingReservations = $reservationRepository->findPendingByDriver($user->getId());
+        
+        // Enrichir chaque réservation avec les données utilisateur
+        foreach ($pendingReservations as $key => $reservation) {
+            $userId = $reservation->getUserId();
+            if ($userId) {
+                $passager = $utilisateurRepository->find($userId);
+                if ($passager) {
+                    // Ajouter les informations utilisateur à la réservation
+                    $pendingReservations[$key]->passager = $passager;
+                }
+            }
+        }
+        
         return $this->render('conducteur/dashboard.html.twig', [
             'user' => $user,
-            'car' => $this->getCarData($carRepository)
+            'voiture' => $this->getCarData($carRepository),
+            'pendingReservations' => $pendingReservations
         ]);
     }
     
@@ -81,6 +101,92 @@ class ConducteurController extends AbstractController
         ]);
     }
     
+    #[Route('/reclamation/submit', name: 'app_conducteur_reclamation_submit', methods: ['POST'])]
+    public function reclamationSubmit(
+        Request $request, 
+        EntityManagerInterface $entityManager,
+        \Symfony\Component\Validator\Validator\ValidatorInterface $validator
+    ): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        $subject = $request->request->get('subject');
+        $description = $request->request->get('description');
+        
+        // Custom validation to ensure fields aren't just whitespace
+        if (trim($subject) === '') {
+            $this->addFlash('error', 'Le sujet ne peut pas être vide ou contenir uniquement des espaces');
+            return $this->redirectToRoute('app_conducteur_reclamation');
+        }
+        
+        if (trim($description) === '') {
+            $this->addFlash('error', 'La description ne peut pas être vide ou contenir uniquement des espaces');
+            return $this->redirectToRoute('app_conducteur_reclamation');
+        }
+        
+        // Créer une nouvelle réclamation
+        $reclamation = new Reclamation();
+        $reclamation->setUser($this->getUser());
+        $reclamation->setSubject(trim($subject));  // Trim to remove leading/trailing whitespace
+        $reclamation->setDescription(trim($description));  // Trim to remove leading/trailing whitespace
+        $reclamation->setDate(new \DateTime());
+        $reclamation->setState('pending');
+        
+        // Validate the entity using the constraints defined in the entity
+        $errors = $validator->validate($reclamation);
+        
+        if (count($errors) > 0) {
+            // Add each validation error as a flash message
+            foreach ($errors as $error) {
+                $this->addFlash('error', $error->getMessage());
+            }
+            return $this->redirectToRoute('app_conducteur_reclamation');
+        }
+        
+        $entityManager->persist($reclamation);
+        $entityManager->flush();
+        
+        $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
+        
+        return $this->redirectToRoute('app_conducteur_mes_reclamations');
+    }
+    
+    #[Route('/mes-reclamations', name: 'app_conducteur_mes_reclamations')]
+    public function mesReclamations(EntityManagerInterface $entityManager): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this page
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        $user = $this->getUser();
+        
+        // Récupérer les réclamations de l'utilisateur
+        $reclamations = $entityManager->getRepository(Reclamation::class)
+            ->findBy(['user' => $user], ['date' => 'DESC']);
+        
+        return $this->render('conducteur/reclamation/index.html.twig', [
+            'user' => $user,
+            'reclamations' => $reclamations
+        ]);
+    }
+    
+    #[Route('/reclamation/{id}', name: 'app_conducteur_reclamation_show')]
+    public function reclamationShow(Reclamation $reclamation): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this page
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        // Vérifier que l'utilisateur est bien le propriétaire de la réclamation
+        if ($reclamation->getUser() !== $this->getUser()) {
+            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à voir cette réclamation');
+        }
+        
+        return $this->render('conducteur/reclamation/show.html.twig', [
+            'reclamation' => $reclamation,
+            'user' => $this->getUser()
+        ]);
+    }
+    
     #[Route('/annonce', name: 'app_conducteur_annonce')]
     public function annonce(CarRepository $carRepository): Response
     {
@@ -96,12 +202,19 @@ class ConducteurController extends AbstractController
     }
     
     #[Route('/annonce/submit', name: 'app_conducteur_annonce_submit', methods: ['POST'])]
-    public function annonceSubmit(Request $request, EntityManagerInterface $entityManager): Response
+    public function annonceSubmit(Request $request, EntityManagerInterface $entityManager, CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
         
         $user = $this->getUser();
+        
+        // Récupérer la voiture de l'utilisateur
+        $car = $this->getCarData($carRepository);
+        if (!$car) {
+            $this->addFlash('error', 'Vous devez d\'abord ajouter une voiture.');
+            return $this->redirectToRoute('app_conducteur_voiture_add');
+        }
         
         // Create new trajet
         $trajet = new Trajet();
@@ -113,18 +226,34 @@ class ConducteurController extends AbstractController
         
         $entityManager->persist($trajet);
         
-        // Create new annonce using the trajet
-        $annonce = new Annonce();
-        $annonce->setTitre($request->request->get('depart') . ' → ' . $request->request->get('destination'));
-        $annonce->setDescription($request->request->get('description') ?? '');
-        $annonce->setTrajet($trajet);
-        $annonce->setDriverId($user->getId());
-        $annonce->setAvailableSeats(intval($request->request->get('places')));
-        $annonce->setStatus('ouvert');
-        $annonce->setDatePublication(new \DateTime());
+        // Récupérer la description
+        $description = $request->request->get('description') ?? '';
+        
+        // Valider la description (pas de mots grossiers)
+        if (!$this->validateDescription($description)) {
+            $this->addFlash('error', 'La description contient du langage inapproprié.');
+            return $this->redirectToRoute('app_conducteur_annonce');
+        }
         
         // Parse date and time
         $departureDate = new \DateTime($request->request->get('date') . ' ' . $request->request->get('heure'));
+        
+        // Valider que la date est dans le futur
+        if (!$this->validateFutureDate($departureDate)) {
+            $this->addFlash('error', 'La date et l\'heure de départ doivent être dans le futur.');
+            return $this->redirectToRoute('app_conducteur_annonce');
+        }
+        
+        // Create new annonce using the trajet
+        $annonce = new Annonce();
+        $annonce->setTitre($request->request->get('depart') . ' → ' . $request->request->get('destination'));
+        $annonce->setDescription($description);
+        $annonce->setTrajet($trajet);
+        $annonce->setDriverId($user->getId());
+        $annonce->setCarId($car->getId()); // Définir l'ID de la voiture
+        $annonce->setAvailableSeats(intval($request->request->get('places')));
+        $annonce->setStatus('ouvert');
+        $annonce->setDatePublication(new \DateTime());
         $annonce->setDepartureDate($departureDate);
         
         $entityManager->persist($annonce);
@@ -136,12 +265,19 @@ class ConducteurController extends AbstractController
     }
     
     #[Route('/reservations', name: 'app_conducteur_reservations')]
-    public function reservations(EntityManagerInterface $entityManager, UtilisateurRepository $utilisateurRepository): Response
+    public function reservations(
+        EntityManagerInterface $entityManager,
+        UtilisateurRepository $utilisateurRepository,
+        Request $request
+    ): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
         
         $user = $this->getUser();
+        
+        // Filtres
+        $statusFilter = $request->query->get('status', 'all');
         
         // Récupérer les annonces du conducteur
         $annonces = $entityManager->getRepository(Annonce::class)
@@ -152,8 +288,15 @@ class ConducteurController extends AbstractController
         
         // Pour chaque annonce, récupérer ses réservations
         foreach ($annonces as $annonce) {
+            $criteria = ['annonce' => $annonce];
+            
+            // Appliquer le filtre de statut si nécessaire
+            if ($statusFilter !== 'all') {
+                $criteria['status'] = $statusFilter;
+            }
+            
             $reservations = $entityManager->getRepository(Reservation::class)
-                ->findBy(['annonce' => $annonce], ['dateReservation' => 'DESC']);
+                ->findBy($criteria, ['dateReservation' => 'DESC']);
             
             // Enrichir chaque réservation avec les données utilisateur
             foreach ($reservations as $key => $reservation) {
@@ -179,8 +322,18 @@ class ConducteurController extends AbstractController
         
         // Pour chaque annonce d'événement, récupérer ses réservations
         foreach ($annoncesEvent as $annonceEvent) {
+            $criteria = [
+                'annonceEvent' => $annonceEvent->getId(), 
+                'type' => 'EVENT'
+            ];
+            
+            // Appliquer le filtre de statut si nécessaire
+            if ($statusFilter !== 'all') {
+                $criteria['status'] = $statusFilter;
+            }
+            
             $reservations = $entityManager->getRepository(Reservation::class)
-                ->findBy(['annonceEvent' => $annonceEvent->getId(), 'type' => 'EVENT'], ['dateReservation' => 'DESC']);
+                ->findBy($criteria, ['dateReservation' => 'DESC']);
             
             // Enrichir chaque réservation avec les données utilisateur
             foreach ($reservations as $key => $reservation) {
@@ -206,23 +359,28 @@ class ConducteurController extends AbstractController
         
         return $this->render('conducteur/reservations.html.twig', [
             'user' => $user,
-            'reservationsByAnnonce' => $reservationsByAnnonce
+            'reservationsByAnnonce' => $reservationsByAnnonce,
+            'statusFilter' => $statusFilter
         ]);
     }
     
     #[Route('/accepter-reservation/{id}', name: 'app_conducteur_accepter_reservation', methods: ['POST'])]
-    public function accepterReservation(Reservation $reservation, EntityManagerInterface $entityManager): Response
+    public function accepterReservation(
+        Reservation $reservation, 
+        EntityManagerInterface $entityManager,
+        EmailService $emailService,
+        UtilisateurRepository $utilisateurRepository
+    ): Response
     {
-        // Vérifier que l'utilisateur est bien ROLE_CONDUCTEUR
+        // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
         
         $user = $this->getUser();
-        
-        // Vérifier que l'annonce associée à la réservation appartient bien au conducteur
         $annonce = $reservation->getAnnonce();
-        if (!$annonce || $annonce->getDriverId() != $user->getId()) {
-            $this->addFlash('error', 'Vous n\'êtes pas autorisé à accepter cette réservation.');
-            return $this->redirectToRoute('app_conducteur_reservations');
+        
+        // Vérifier que l'utilisateur est bien le conducteur de cette annonce
+        if (!$annonce || $annonce->getDriverId() !== $user->getId()) {
+            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à gérer cette réservation.');
         }
         
         // Si la réservation est déjà acceptée, ne rien faire
@@ -234,6 +392,15 @@ class ConducteurController extends AbstractController
         // Vérifier s'il reste des places disponibles
         if ($annonce->getAvailableSeats() <= 0) {
             $this->addFlash('error', 'Vous n\'avez plus de places disponibles pour cette annonce.');
+            return $this->redirectToRoute('app_conducteur_reservations');
+        }
+        
+        // Vérifier si l'utilisateur passager existe avant d'accepter
+        $passagerId = $reservation->getUserId();
+        $passager = $utilisateurRepository->find($passagerId);
+        
+        if (!$passager) {
+            $this->addFlash('error', 'Le passager associé à cette réservation n\'existe pas.');
             return $this->redirectToRoute('app_conducteur_reservations');
         }
         
@@ -251,7 +418,20 @@ class ConducteurController extends AbstractController
         
         $entityManager->flush();
         
-        $this->addFlash('success', 'Réservation acceptée avec succès ! <a href="' . $this->generateUrl('app_chat_conversation', ['reservationId' => $reservation->getId(), 'type' => 'TRAJET']) . '" class="text-primary hover:underline">Cliquez ici pour discuter avec le passager</a>');
+        // Envoyer un email de confirmation au passager
+        $emailSent = false;
+        try {
+            $emailSent = $emailService->sendReservationConfirmationEmail($reservation);
+        } catch (\Exception $e) {
+            // Log l'erreur mais ne bloque pas le processus
+            error_log('Erreur lors de l\'envoi de l\'email: ' . $e->getMessage());
+        }
+        
+        if ($emailSent) {
+            $this->addFlash('success', 'Réservation acceptée avec succès ! Un email de confirmation a été envoyé au passager.');
+        } else {
+            $this->addFlash('success', 'Réservation acceptée avec succès ! Mais l\'envoi de l\'email de confirmation a échoué.');
+        }
         
         return $this->redirectToRoute('app_conducteur_reservations');
     }
@@ -334,15 +514,20 @@ class ConducteurController extends AbstractController
     }
     
     #[Route('/liste-annonce', name: 'app_conducteur_liste_annonce')]
-    public function listeAnnonce(AnnonceRepository $annonceRepository, CarRepository $carRepository): Response
+    public function listeAnnonce(Request $request, AnnonceRepository $annonceRepository, CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
         
         $user = $this->getUser();
         
-        // Récupérer les annonces depuis la base de données
-        $annonces = $annonceRepository->findByDriver($user->getId());
+        // Récupérer les paramètres de filtrage
+        $search = $request->query->get('search');
+        $status = $request->query->get('status');
+        $sort = $request->query->get('sort');
+        
+        // Récupérer les annonces depuis la base de données avec les filtres
+        $annonces = $annonceRepository->findByDriverWithFilters($user->getId(), $search, $status, $sort);
         
         return $this->render('conducteur/liste_annonce.html.twig', [
             'user' => $user,
@@ -371,14 +556,42 @@ class ConducteurController extends AbstractController
         // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
         
-        $user = $this->getUser();
+        // Récupérer les données du formulaire
+        $titre = $request->request->get('titre');
+        $departurePoint = $request->request->get('departure_point');
+        $arrivalPoint = $request->request->get('arrival_point');
+        $price = $request->request->get('price');
         
-        // Create new trajet
+        // Valider le titre (alphanumérique seulement, max 25 caractères, accepte "-->")
+        if (!$this->validateTitre($titre)) {
+            $this->addFlash('error', 'Le titre du trajet doit contenir uniquement des caractères alphabétiques et peut inclure "-->". Maximum 25 caractères.');
+            return $this->redirectToRoute('app_conducteur_ajouter_trajet');
+        }
+        
+        // Valider le lieu de départ (alphabétique seulement, max 25 caractères)
+        if (!$this->validateLocation($departurePoint)) {
+            $this->addFlash('error', 'Le lieu de départ doit contenir uniquement des caractères alphabétiques. Maximum 25 caractères.');
+            return $this->redirectToRoute('app_conducteur_ajouter_trajet');
+        }
+        
+        // Valider la destination (alphabétique seulement, max 25 caractères)
+        if (!$this->validateLocation($arrivalPoint)) {
+            $this->addFlash('error', 'La destination doit contenir uniquement des caractères alphabétiques. Maximum 25 caractères.');
+            return $this->redirectToRoute('app_conducteur_ajouter_trajet');
+        }
+        
+        // Valider le prix (pas négatif)
+        if (floatval($price) < 0) {
+            $this->addFlash('error', 'Le prix ne peut pas être négatif.');
+            return $this->redirectToRoute('app_conducteur_ajouter_trajet');
+        }
+        
+        // Créer un nouvel objet Trajet
         $trajet = new Trajet();
-        $trajet->setTitre($request->request->get('titre'));
-        $trajet->setDeparturePoint($request->request->get('departure_point'));
-        $trajet->setArrivalPoint($request->request->get('arrival_point'));
-        $trajet->setPrice(floatval($request->request->get('price')));
+        $trajet->setTitre($titre);
+        $trajet->setDeparturePoint($departurePoint);
+        $trajet->setArrivalPoint($arrivalPoint);
+        $trajet->setPrice(floatval($price));
         $trajet->setCreatedAt(new \DateTime());
         $trajet->setUpdatedAt(new \DateTime());
         
@@ -388,6 +601,30 @@ class ConducteurController extends AbstractController
         $this->addFlash('success', 'Votre trajet a été ajouté avec succès !');
         
         return $this->redirectToRoute('app_conducteur_liste_trajet');
+    }
+    
+    // Méthode de validation pour le titre
+    private function validateTitre(string $titre): bool
+    {
+        // Vérifier la longueur maximale
+        if (strlen($titre) > 25) {
+            return false;
+        }
+        
+        // Autoriser les caractères alphabétiques et "-->"
+        return preg_match('/^[a-zA-ZÀ-ÿ\s]*(-{2}>)?[a-zA-ZÀ-ÿ\s]*$/', $titre);
+    }
+    
+    // Méthode de validation pour les lieux
+    private function validateLocation(string $location): bool
+    {
+        // Vérifier la longueur maximale
+        if (strlen($location) > 25) {
+            return false;
+        }
+        
+        // Autoriser uniquement les caractères alphabétiques
+        return preg_match('/^[a-zA-ZÀ-ÿ\s]*$/', $location);
     }
     
     #[Route('/ajouter-annonce', name: 'app_conducteur_ajouter_annonce')]
@@ -409,71 +646,71 @@ class ConducteurController extends AbstractController
     }
     
     #[Route('/ajouter-annonce/submit', name: 'app_conducteur_ajouter_annonce_submit', methods: ['POST'])]
-    public function ajouterAnnonceSubmit(Request $request, EntityManagerInterface $entityManager, TrajetRepository $trajetRepository): Response
+    public function ajouterAnnonceSubmit(Request $request, EntityManagerInterface $entityManager, TrajetRepository $trajetRepository, CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
         
         $user = $this->getUser();
+        
+        // Récupérer la voiture de l'utilisateur
+        $car = $this->getCarData($carRepository);
+        if (!$car) {
+            $this->addFlash('error', 'Vous devez d\'abord ajouter une voiture.');
+            return $this->redirectToRoute('app_conducteur_voiture_add');
+        }
+        
+        // Récupérer les données du formulaire
         $trajetId = $request->request->get('trajet_id');
         $titre = $request->request->get('titre');
-        $description = $request->request->get('description');
         $departureDate = $request->request->get('departure_date');
+        $availableSeats = intval($request->request->get('available_seats'));
+        $description = $request->request->get('description');
         
-        // Validation du titre: maximum 25 caractères alphanumériques
-        if (strlen($titre) > 25) {
-            $this->addFlash('error', 'Le titre ne doit pas dépasser 25 caractères.');
+        // Valider le titre (max 25 caractères, alphabétique et "-->" uniquement)
+        if (!$this->validateTitre($titre)) {
+            $this->addFlash('error', 'Le titre de l\'annonce doit contenir maximum 25 caractères, alphabétique et "-->" uniquement.');
             return $this->redirectToRoute('app_conducteur_ajouter_annonce');
         }
         
-        // Vérifier que le titre ne contient que des caractères alphanumériques et des espaces
-        if (!preg_match('/^[a-zA-Z0-9\s\-àáâäãåąčćęèéêëėįìíîïłńòóôöõøùúûüųūÿýżźñçšžÀÁÂÄÃÅĄĆČĖĘÈÉÊËÌÍÎÏĮŁŃÒÓÔÖÕØÙÚÛÜŲŪŸÝŻŹÑßÇŒÆŠŽ,.\']+$/', $titre)) {
-            $this->addFlash('error', 'Le titre ne doit contenir que des caractères alphanumériques.');
+        // Valider la description (pas de mots grossiers)
+        if ($description && !$this->validateDescription($description)) {
+            $this->addFlash('error', 'La description contient du langage inapproprié.');
             return $this->redirectToRoute('app_conducteur_ajouter_annonce');
         }
         
-        // Validation de la date: doit être dans le futur
-        $dateObj = new \DateTime($departureDate);
-        $now = new \DateTime();
-        if ($dateObj < $now) {
-            $this->addFlash('error', 'La date de départ ne peut pas être dans le passé.');
+        // Convertir la date de départ
+        $departureDateObj = new \DateTime($departureDate);
+        
+        // Valider que la date est dans le futur
+        if (!$this->validateFutureDate($departureDateObj)) {
+            $this->addFlash('error', 'La date et l\'heure de départ doivent être dans le futur.');
             return $this->redirectToRoute('app_conducteur_ajouter_annonce');
         }
         
-        // Validation du contenu: pas de mots inappropriés dans la description
-        if (!empty($description)) {
-            $inappropriateWords = ['fuck', 'fuck you', 'bitch', 'asshole', 'shit', 'pute', 'connard', 'putain', 'merde'];
-            foreach ($inappropriateWords as $word) {
-                if (stripos($description, $word) !== false) {
-                    $this->addFlash('error', 'La description contient des termes inappropriés. Veuillez utiliser un langage respectueux.');
-                    return $this->redirectToRoute('app_conducteur_ajouter_annonce');
-                }
-            }
-        }
-        
-        // Récupérer le trajet sélectionné
+        // Récupérer le trajet associé
         $trajet = $trajetRepository->find($trajetId);
-        
         if (!$trajet) {
             $this->addFlash('error', 'Le trajet sélectionné n\'existe pas.');
             return $this->redirectToRoute('app_conducteur_ajouter_annonce');
         }
         
+        // Créer une nouvelle annonce
         $annonce = new Annonce();
         $annonce->setTitre($titre);
-        $annonce->setDescription($description);
+        $annonce->setDescription($description ?? '');
         $annonce->setTrajet($trajet);
         $annonce->setDriverId($user->getId());
-        $annonce->setCarId(1); // Valeur par défaut, à ajuster selon votre modèle
-        $annonce->setAvailableSeats((int)$request->request->get('available_seats'));
+        $annonce->setCarId($car->getId()); // Définir l'ID de la voiture
+        $annonce->setAvailableSeats($availableSeats);
         $annonce->setStatus('ouvert');
         $annonce->setDatePublication(new \DateTime());
-        $annonce->setDepartureDate($dateObj);
+        $annonce->setDepartureDate($departureDateObj);
         
         $entityManager->persist($annonce);
         $entityManager->flush();
         
-        $this->addFlash('success', 'L\'annonce a été ajoutée avec succès !');
+        $this->addFlash('success', 'Votre annonce a été publiée avec succès !');
         
         return $this->redirectToRoute('app_conducteur_liste_annonce');
     }
@@ -533,69 +770,72 @@ class ConducteurController extends AbstractController
     }
     
     #[Route('/modifier-annonce/{id}/submit', name: 'app_conducteur_modifier_annonce_submit', methods: ['POST'])]
-    public function modifierAnnonceSubmit(Request $request, Annonce $annonce, EntityManagerInterface $entityManager, TrajetRepository $trajetRepository): Response
+    public function modifierAnnonceSubmit(Request $request, Annonce $annonce, EntityManagerInterface $entityManager, TrajetRepository $trajetRepository, CarRepository $carRepository): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
         
-        // Vérifier que l'utilisateur actuel est bien le conducteur de cette annonce
         $user = $this->getUser();
-        if ($user->getId() !== $annonce->getDriverId()) {
-            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à modifier cette annonce.');
+        
+        // Vérifier que l'annonce appartient à l'utilisateur
+        if ($annonce->getDriverId() !== $user->getId()) {
+            $this->addFlash('error', 'Vous n\'êtes pas autorisé à modifier cette annonce.');
+            return $this->redirectToRoute('app_conducteur_liste_annonce');
         }
         
+        // Récupérer la voiture de l'utilisateur
+        $car = $this->getCarData($carRepository);
+        if (!$car) {
+            $this->addFlash('error', 'Vous devez d\'abord ajouter une voiture.');
+            return $this->redirectToRoute('app_conducteur_voiture_add');
+        }
+        
+        // Récupérer les données du formulaire
         $trajetId = $request->request->get('trajet_id');
         $titre = $request->request->get('titre');
-        $description = $request->request->get('description');
         $departureDate = $request->request->get('departure_date');
+        $availableSeats = intval($request->request->get('available_seats'));
+        $description = $request->request->get('description');
         
-        // Validation du titre: maximum 25 caractères alphanumériques
-        if (strlen($titre) > 25) {
-            $this->addFlash('error', 'Le titre ne doit pas dépasser 25 caractères.');
+        // Valider le titre (max 25 caractères, alphabétique et "-->" uniquement)
+        if (!$this->validateTitre($titre)) {
+            $this->addFlash('error', 'Le titre de l\'annonce doit contenir maximum 25 caractères, alphabétique et "-->" uniquement.');
             return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
         }
         
-        // Vérifier que le titre ne contient que des caractères alphanumériques et des espaces
-        if (!preg_match('/^[a-zA-Z0-9\s\-àáâäãåąčćęèéêëėįìíîïłńòóôöõøùúûüųūÿýżźñçšžÀÁÂÄÃÅĄĆČĖĘÈÉÊËÌÍÎÏĮŁŃÒÓÔÖÕØÙÚÛÜŲŪŸÝŻŹÑßÇŒÆŠŽ,.\']+$/', $titre)) {
-            $this->addFlash('error', 'Le titre ne doit contenir que des caractères alphanumériques.');
+        // Valider la description (pas de mots grossiers)
+        if ($description && !$this->validateDescription($description)) {
+            $this->addFlash('error', 'La description contient du langage inapproprié.');
             return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
         }
         
-        // Validation de la date: doit être dans le futur
-        $dateObj = new \DateTime($departureDate);
-        $now = new \DateTime();
-        if ($dateObj < $now) {
-            $this->addFlash('error', 'La date de départ ne peut pas être dans le passé.');
+        // Convertir la date de départ
+        $departureDateObj = new \DateTime($departureDate);
+        
+        // Valider que la date est dans le futur
+        if (!$this->validateFutureDate($departureDateObj)) {
+            $this->addFlash('error', 'La date et l\'heure de départ doivent être dans le futur.');
             return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
         }
         
-        // Validation du contenu: pas de mots inappropriés dans la description
-        if (!empty($description)) {
-            $inappropriateWords = ['fuck', 'fuck you', 'bitch', 'asshole', 'shit', 'pute', 'connard', 'putain', 'merde'];
-            foreach ($inappropriateWords as $word) {
-                if (stripos($description, $word) !== false) {
-                    $this->addFlash('error', 'La description contient des termes inappropriés. Veuillez utiliser un langage respectueux.');
-                    return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
-                }
-            }
-        }
-        
+        // Récupérer le trajet associé
         $trajet = $trajetRepository->find($trajetId);
-        
         if (!$trajet) {
             $this->addFlash('error', 'Le trajet sélectionné n\'existe pas.');
             return $this->redirectToRoute('app_conducteur_modifier_annonce', ['id' => $annonce->getId()]);
         }
         
+        // Mettre à jour l'annonce
         $annonce->setTitre($titre);
-        $annonce->setDescription($description);
+        $annonce->setDescription($description ?? '');
         $annonce->setTrajet($trajet);
-        $annonce->setAvailableSeats((int)$request->request->get('available_seats'));
-        $annonce->setDepartureDate($dateObj);
+        $annonce->setCarId($car->getId()); // Définir l'ID de la voiture
+        $annonce->setAvailableSeats($availableSeats);
+        $annonce->setDepartureDate($departureDateObj);
         
         $entityManager->flush();
         
-        $this->addFlash('success', 'L\'annonce a été modifiée avec succès !');
+        $this->addFlash('success', 'Votre annonce a été modifiée avec succès !');
         
         return $this->redirectToRoute('app_conducteur_liste_annonce');
     }
@@ -1181,7 +1421,9 @@ class ConducteurController extends AbstractController
         int $id, 
         EntityManagerInterface $entityManager,
         ReservationRepository $reservationRepository,
-        AnnonceEventRepository $annonceRepository
+        AnnonceEventRepository $annonceRepository,
+        EmailService $emailService,
+        UtilisateurRepository $utilisateurRepository
     ): Response {
         // Vérifier que l'utilisateur est bien ROLE_CONDUCTEUR
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -1216,6 +1458,15 @@ class ConducteurController extends AbstractController
             return $this->redirectToRoute('app_conducteur_reservations_event');
         }
         
+        // Vérifier si l'utilisateur passager existe avant d'accepter
+        $passagerId = $reservation->getUserId();
+        $passager = $utilisateurRepository->find($passagerId);
+        
+        if (!$passager) {
+            $this->addFlash('error', 'Le passager associé à cette réservation n\'existe pas.');
+            return $this->redirectToRoute('app_conducteur_reservations_event');
+        }
+        
         try {
             // Accepter la réservation
             $reservation->setStatus('ACCEPTED');
@@ -1237,7 +1488,20 @@ class ConducteurController extends AbstractController
             
             $entityManager->flush();
             
-            $this->addFlash('success', 'Réservation acceptée avec succès ! <a href="' . $this->generateUrl('app_chat_conversation', ['reservationId' => $reservation->getId(), 'type' => 'EVENT']) . '" class="text-primary hover:underline">Cliquez ici pour discuter avec le participant</a>');
+            // Envoyer un email de confirmation au passager
+            $emailSent = false;
+            try {
+                $emailSent = $emailService->sendReservationConfirmationEmail($reservation);
+            } catch (\Exception $e) {
+                // Log l'erreur mais ne bloque pas le processus
+                error_log('Erreur lors de l\'envoi de l\'email: ' . $e->getMessage());
+            }
+            
+            if ($emailSent) {
+                $this->addFlash('success', 'Réservation acceptée avec succès ! Un email de confirmation a été envoyé au passager.');
+            } else {
+                $this->addFlash('success', 'Réservation acceptée avec succès ! Mais l\'envoi de l\'email de confirmation a échoué.');
+            }
             
         } catch (\Exception $e) {
             $this->addFlash('error', 'Une erreur est survenue lors de l\'acceptation de la réservation: ' . $e->getMessage());
@@ -1432,7 +1696,7 @@ class ConducteurController extends AbstractController
     }
 
     #[Route('/voiture/add', name: 'app_conducteur_voiture_add')]
-    public function addVoiture(Request $request, EntityManagerInterface $entityManager): Response
+    public function addVoiture(Request $request, EntityManagerInterface $entityManager, CarApiService $carApiService): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -1490,15 +1754,19 @@ class ConducteurController extends AbstractController
         // Get categories for the form
         $categories = $entityManager->getRepository(\App\Entity\Categorie::class)->findAll();
         
+        // Get car makes from API
+        $carMakes = $carApiService->getCarMakes();
+        
         return $this->render('conducteur/voiture_add.html.twig', [
             'user' => $user,
             'categories' => $categories,
-            'car' => null // Pass null as the 'car' variable for the layout
+            'car' => null, // Pass null as the 'car' variable for the layout
+            'carMakes' => $carMakes,
         ]);
     }
     
     #[Route('/voiture/edit', name: 'app_conducteur_voiture_edit')]
-    public function editVoiture(Request $request, EntityManagerInterface $entityManager, CarRepository $carRepository): Response
+    public function editVoiture(Request $request, EntityManagerInterface $entityManager, CarRepository $carRepository, CarApiService $carApiService): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this page
         $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
@@ -1544,11 +1812,201 @@ class ConducteurController extends AbstractController
         // Get categories for the form
         $categories = $entityManager->getRepository(\App\Entity\Categorie::class)->findAll();
         
+        // Get car makes from API
+        $carMakes = $carApiService->getCarMakes();
+        
         return $this->render('conducteur/voiture_edit.html.twig', [
             'user' => $user,
             'voiture' => $voiture,
             'categories' => $categories,
-            'car' => $voiture // Pass the car data for the layout as well
+            'car' => $voiture, // Pass the car data for the layout as well
+            'carMakes' => $carMakes,
         ]);
+    }
+
+    #[Route('/voiture/delete', name: 'app_conducteur_voiture_delete', methods: ['POST'])]
+    public function deleteVoiture(Request $request, EntityManagerInterface $entityManager, CarRepository $carRepository): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        // Validate CSRF token
+        if (!$this->isCsrfTokenValid('delete-car', $request->request->get('_token'))) {
+            $this->addFlash('error', 'Token CSRF invalide.');
+            return $this->redirectToRoute('app_conducteur_voiture');
+        }
+        
+        $user = $this->getUser();
+        
+        // Get the user's car
+        $voiture = $carRepository->findOneBy(['userId' => $user->getId()]);
+        
+        if (!$voiture) {
+            $this->addFlash('error', 'Aucune voiture trouvée à supprimer.');
+            return $this->redirectToRoute('app_conducteur_voiture');
+        }
+        
+        // Check if the car is used in any active announcements - Annonce entity
+        $annonceRepository = $entityManager->getRepository(\App\Entity\Annonce::class);
+        $activeAnnouncements = $annonceRepository->findBy([
+            'car_id' => $voiture->getId(),
+            'status' => ['ouvert', 'plein'] // Only check active announcements
+        ]);
+        
+        if (count($activeAnnouncements) > 0) {
+            $this->addFlash('error', 'Cette voiture est utilisée dans des annonces actives. Veuillez d\'abord terminer ou supprimer ces annonces.');
+            return $this->redirectToRoute('app_conducteur_voiture');
+        }
+        
+        // Check if the car is used in any active event announcements - AnnonceEvent entity
+        $annonceEventRepository = $entityManager->getRepository(\App\Entity\AnnonceEvent::class);
+        $activeEventAnnouncements = $annonceEventRepository->findBy([
+            'carId' => $voiture->getId(),
+            'status' => ['ouvert', 'plein'] // Only check active announcements
+        ]);
+        
+        if (count($activeEventAnnouncements) > 0) {
+            $this->addFlash('error', 'Cette voiture est utilisée dans des annonces d\'événements actives. Veuillez d\'abord terminer ou supprimer ces annonces.');
+            return $this->redirectToRoute('app_conducteur_voiture');
+        }
+
+        try {
+            // Remove the car
+            $entityManager->remove($voiture);
+            $entityManager->flush();
+            
+            $this->addFlash('success', 'Votre voiture a été supprimée avec succès.');
+        } catch (\Exception $e) {
+            // Handle database errors
+            $this->addFlash('error', 'Une erreur est survenue lors de la suppression de la voiture: ' . $e->getMessage());
+        }
+        
+        return $this->redirectToRoute('app_conducteur_voiture');
+    }
+
+    #[Route('/api/car-models/{makeId}', name: 'app_api_car_models', methods: ['GET'])]
+    public function getCarModels(string $makeId, CarApiService $carApiService): JsonResponse
+    {
+        $models = $carApiService->getCarModels($makeId);
+        return new JsonResponse($models);
+    }
+
+    #[Route('/modifier-trajet/{id}', name: 'app_conducteur_modifier_trajet')]
+    public function modifierTrajet(Trajet $trajet, CarRepository $carRepository): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        $user = $this->getUser();
+        
+        return $this->render('conducteur/modifier_trajet.html.twig', [
+            'user' => $user,
+            'trajet' => $trajet,
+            'car' => $this->getCarData($carRepository)
+        ]);
+    }
+    
+    #[Route('/modifier-trajet/{id}/submit', name: 'app_conducteur_modifier_trajet_submit', methods: ['POST'])]
+    public function modifierTrajetSubmit(Request $request, Trajet $trajet, EntityManagerInterface $entityManager): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        // Récupérer les données du formulaire
+        $titre = $request->request->get('titre');
+        $departurePoint = $request->request->get('departure_point');
+        $arrivalPoint = $request->request->get('arrival_point');
+        $price = $request->request->get('price');
+        
+        // Valider le titre (alphanumérique seulement, max 25 caractères, accepte "-->")
+        if (!$this->validateTitre($titre)) {
+            $this->addFlash('error', 'Le titre du trajet doit contenir uniquement des caractères alphabétiques et peut inclure "-->". Maximum 25 caractères.');
+            return $this->redirectToRoute('app_conducteur_modifier_trajet', ['id' => $trajet->getId()]);
+        }
+        
+        // Valider le lieu de départ (alphabétique seulement, max 25 caractères)
+        if (!$this->validateLocation($departurePoint)) {
+            $this->addFlash('error', 'Le lieu de départ doit contenir uniquement des caractères alphabétiques. Maximum 25 caractères.');
+            return $this->redirectToRoute('app_conducteur_modifier_trajet', ['id' => $trajet->getId()]);
+        }
+        
+        // Valider la destination (alphabétique seulement, max 25 caractères)
+        if (!$this->validateLocation($arrivalPoint)) {
+            $this->addFlash('error', 'La destination doit contenir uniquement des caractères alphabétiques. Maximum 25 caractères.');
+            return $this->redirectToRoute('app_conducteur_modifier_trajet', ['id' => $trajet->getId()]);
+        }
+        
+        // Valider le prix (pas négatif)
+        if (floatval($price) < 0) {
+            $this->addFlash('error', 'Le prix ne peut pas être négatif.');
+            return $this->redirectToRoute('app_conducteur_modifier_trajet', ['id' => $trajet->getId()]);
+        }
+        
+        // Mettre à jour les données du trajet
+        $trajet->setTitre($titre);
+        $trajet->setDeparturePoint($departurePoint);
+        $trajet->setArrivalPoint($arrivalPoint);
+        $trajet->setPrice(floatval($price));
+        $trajet->setUpdatedAt(new \DateTime());
+        
+        $entityManager->flush();
+        
+        $this->addFlash('success', 'Votre trajet a été modifié avec succès !');
+        
+        return $this->redirectToRoute('app_conducteur_liste_trajet');
+    }
+    
+    #[Route('/supprimer-trajet/{id}', name: 'app_conducteur_supprimer_trajet', methods: ['GET'])]
+    public function supprimerTrajet(Trajet $trajet, EntityManagerInterface $entityManager): Response
+    {
+        // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
+        $this->denyAccessUnlessGranted('ROLE_CONDUCTEUR');
+        
+        // Vérifier les annonces liées à ce trajet
+        $annonces = $trajet->getAnnonces();
+        
+        // Si des annonces utilisent ce trajet, informer l'utilisateur
+        if (count($annonces) > 0) {
+            $this->addFlash('error', 'Impossible de supprimer ce trajet car il est utilisé par une ou plusieurs annonces.');
+            return $this->redirectToRoute('app_conducteur_liste_trajet');
+        }
+        
+        // Supprimer le trajet
+        $entityManager->remove($trajet);
+        $entityManager->flush();
+        
+        $this->addFlash('success', 'Le trajet a été supprimé avec succès.');
+        
+        return $this->redirectToRoute('app_conducteur_liste_trajet');
+    }
+
+    /**
+     * Vérifie si la description contient des mots grossiers
+     */
+    private function validateDescription(string $description): bool
+    {
+        // Liste des mots grossiers à filtrer
+        $badWords = ['fuck', 'fuck you', 'merde', 'putain', 'connard', 'salope', 'pute', 'enculé', 'ass', 'bitch'];
+        
+        // Convertir en minuscules pour la comparaison
+        $descriptionLower = strtolower($description);
+        
+        // Vérifier si la description contient un des mots grossiers
+        foreach ($badWords as $word) {
+            if (strpos($descriptionLower, $word) !== false) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Vérifie si la date est dans le futur
+     */
+    private function validateFutureDate(\DateTime $date): bool
+    {
+        $now = new \DateTime();
+        return $date > $now;
     }
 } 

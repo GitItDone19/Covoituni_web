@@ -16,10 +16,24 @@ use Symfony\Component\Routing\Annotation\Route;
 class AnnonceController extends AbstractController
 {
     #[Route('/', name: 'app_admin_annonces', methods: ['GET'])]
-    public function index(AnnonceRepository $annonceRepository): Response
+    public function index(Request $request, AnnonceRepository $annonceRepository): Response
     {
+        // Récupérer les paramètres de filtrage
+        $search = $request->query->get('search');
+        $status = $request->query->get('status');
+        $sort = $request->query->get('sort');
+        
+        // Récupérer les annonces avec les filtres
+        if ($search || $status || $sort) {
+            // Si des filtres sont appliqués, utiliser les filtres personnalisés
+            $annonces = $annonceRepository->findAdminWithFilters($search, $status, $sort);
+        } else {
+            // Sinon, récupérer toutes les annonces
+            $annonces = $annonceRepository->findAll();
+        }
+        
         return $this->render('admin/annonce/index.html.twig', [
-            'annonces' => $annonceRepository->findAll(),
+            'annonces' => $annonces,
         ]);
     }
 

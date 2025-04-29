@@ -105,7 +105,7 @@
                                 <option value="">-- Sélectionner un trajet --</option>
                                 {% for trajet in trajets %}
                                     <option value="{{ trajet.id }}" {% if annonce.trajet and annonce.trajet.id == trajet.id %}selected{% endif %}>
-                                        {{ trajet.departurePoint }} → {{ trajet.arrivalPoint }} ({{ trajet.price }} €)
+                                        {{ trajet.departurePoint }} → {{ trajet.arrivalPoint }} ({{ trajet.price }} DT)
                                     </option>
                                 {% endfor %}
                             </select>

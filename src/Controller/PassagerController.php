@@ -23,6 +23,7 @@ use App\Repository\EventRepository;
 use App\Repository\AnnonceEventRepository;
 use App\Repository\EventParticipationRepository;
 use App\Entity\EventParticipation;
+use App\Service\BadWordsFilter;
 
 #[Route('/passager')]
 class PassagerController extends AbstractController
@@ -359,15 +360,26 @@ class PassagerController extends AbstractController
     }
     
     #[Route('/liste-annonce', name: 'app_passager_liste_annonce')]
-    public function listeAnnonce(AnnonceRepository $annonceRepository): Response
+    public function listeAnnonce(Request $request, AnnonceRepository $annonceRepository): Response
     {
         // Make sure only users with ROLE_PASSAGER can access this page
         $this->denyAccessUnlessGranted('ROLE_PASSAGER');
         
         $user = $this->getUser();
         
-        // Récupérer les annonces actives depuis la base de données
-        $annonces = $annonceRepository->findActiveAnnouncements();
+        // Récupérer les paramètres de filtrage
+        $search = $request->query->get('search');
+        $status = $request->query->get('status');
+        $sort = $request->query->get('sort');
+        
+        // Récupérer les annonces actives depuis la base de données avec les filtres
+        if ($search || $status || $sort) {
+            // Si des filtres sont appliqués, utiliser les filtres personnalisés
+            $annonces = $annonceRepository->findWithFilters($search, $status, $sort);
+        } else {
+            // Sinon, utiliser la méthode existante pour les annonces actives
+            $annonces = $annonceRepository->findActiveAnnouncements();
+        }
         
         return $this->render('passager/liste_annonce.html.twig', [
             'user' => $user,
@@ -590,7 +602,12 @@ class PassagerController extends AbstractController
     }
 
     #[Route('/reservation-create/{id}', name: 'app_passager_reservation_create')]
-    public function createReservation(Annonce $annonce, Request $request, EntityManagerInterface $entityManager): Response
+    public function createReservation(
+        Annonce $annonce, 
+        Request $request, 
+        EntityManagerInterface $entityManager,
+        BadWordsFilter $badWordsFilter
+    ): Response
     {
         $this->denyAccessUnlessGranted('ROLE_PASSAGER');
         
@@ -614,21 +631,10 @@ class PassagerController extends AbstractController
         if ($request->isMethod('POST')) {
             $comment = $request->request->get('comment');
             
-            // Liste des mots inappropriés à vérifier
-            $inappropriateWords = ['fuck', 'fuck you', 'bitch', 'asshole', 'shit', 'pute', 'connard', 'putain', 'merde'];
-            
             // Vérifier si le commentaire contient des mots inappropriés
-            $containsInappropriateWord = false;
-            foreach ($inappropriateWords as $word) {
-                if (stripos($comment, $word) !== false) {
-                    $containsInappropriateWord = true;
-                    break;
-                }
-            }
-            
-            // Si le commentaire contient des mots inappropriés, afficher une erreur
-            if ($containsInappropriateWord) {
-                $this->addFlash('error', 'Votre commentaire contient des termes inappropriés. Veuillez utiliser un langage respectueux.');
+            if ($badWordsFilter->containsBadWords($comment)) {
+                $badWords = $badWordsFilter->getFoundBadWords($comment);
+                $this->addFlash('error', 'Votre commentaire contient des mots inappropriés : ' . implode(', ', $badWords));
                 return $this->render('passager/create_reservation.html.twig', [
                     'annonce' => $annonce,
                     'user' => $user
@@ -751,21 +757,75 @@ class PassagerController extends AbstractController
     }
 
     #[Route('/historique-reservations', name: 'app_passager_historique_reservations')]
-    public function historiqueReservations(EntityManagerInterface $entityManager): Response
+    public function historiqueReservations(EntityManagerInterface $entityManager, Request $request): Response
     {
         $this->denyAccessUnlessGranted('ROLE_PASSAGER');
         
         $user = $this->getUser();
         
-        // Récupérer les réservations terminées de l'utilisateur
-        $reservations = $entityManager->getRepository(Reservation::class)
-            ->findBy([
-                'userId' => $user->getId(),
-                'status' => 'COMPLETED'
-            ], ['dateReservation' => 'DESC']);
+        // Récupérer les paramètres de filtrage
+        $dateFilter = $request->query->get('date');
+        $trajetFilter = $request->query->get('trajet');
+        
+        // Journalisation de débogage
+        $dateFilterDebug = $dateFilter ? 'Date filtrée brute: ' . $dateFilter : 'Aucun filtre de date';
+        error_log($dateFilterDebug);
+        
+        // Base des réservations terminées de l'utilisateur
+        $queryBuilder = $entityManager->getRepository(Reservation::class)
+            ->createQueryBuilder('r')
+            ->where('r.userId = :userId')
+            ->andWhere('r.status = :status')
+            ->setParameter('userId', $user->getId())
+            ->setParameter('status', 'COMPLETED')
+            ->orderBy('r.dateReservation', 'DESC');
+        
+        // Filtrer par date si spécifiée
+        if ($dateFilter) {
+            try {
+                // Essayer d'abord avec le format AAAA-MM-JJ
+                $dateObj = \DateTime::createFromFormat('Y-m-d', $dateFilter);
+                
+                // Si ça échoue, essayer avec le format JJ-MM-AAAA
+                if (!$dateObj) {
+                    $dateObj = \DateTime::createFromFormat('d-m-Y', $dateFilter);
+                }
+                
+                // Si toujours pas, essayer avec le format JJ/MM/AAAA
+                if (!$dateObj) {
+                    $dateObj = \DateTime::createFromFormat('d/m/Y', $dateFilter);
+                }
+                
+                error_log('Date créée: ' . ($dateObj ? $dateObj->format('Y-m-d') : 'Échec de la création de l\'objet date'));
+                
+                if ($dateObj) {
+                    $startDate = clone $dateObj;
+                    $startDate->setTime(0, 0, 0); // Début de la journée
+                    
+                    $endDate = clone $dateObj;
+                    $endDate->setTime(23, 59, 59); // Fin de la journée
+                    
+                    error_log('Début journée: ' . $startDate->format('Y-m-d H:i:s'));
+                    error_log('Fin journée: ' . $endDate->format('Y-m-d H:i:s'));
+                    
+                    $queryBuilder->andWhere('r.dateReservation >= :startDate')
+                        ->andWhere('r.dateReservation <= :endDate')
+                        ->setParameter('startDate', $startDate)
+                        ->setParameter('endDate', $endDate);
+                        
+                    error_log('Requête SQL générée: ' . $queryBuilder->getQuery()->getSQL());
+                }
+            } catch (\Exception $e) {
+                error_log('Erreur lors du traitement de la date: ' . $e->getMessage());
+            }
+        }
+        
+        // Exécuter la requête filtrée
+        $reservations = $queryBuilder->getQuery()->getResult();
+        error_log('Nombre de réservations trouvées: ' . count($reservations));
         
         // Récupérer les réservations d'événements terminées
-        $eventReservations = $entityManager->getRepository(Reservation::class)
+        $eventQueryBuilder = $entityManager->getRepository(Reservation::class)
             ->createQueryBuilder('r')
             ->innerJoin('r.annonceEvent', 'ae')
             ->where('r.userId = :userId')
@@ -774,12 +834,56 @@ class PassagerController extends AbstractController
             ->setParameter('userId', $user->getId())
             ->setParameter('type', 'EVENT')
             ->setParameter('status', 'termine')
-            ->orderBy('r.dateReservation', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('r.dateReservation', 'DESC');
+        
+        // Filtrer par date pour les événements également
+        if ($dateFilter) {
+            try {
+                if ($dateObj) {
+                    $startDate = clone $dateObj;
+                    $startDate->setTime(0, 0, 0); // Début de la journée
+                    
+                    $endDate = clone $dateObj;
+                    $endDate->setTime(23, 59, 59); // Fin de la journée
+                    
+                    $eventQueryBuilder->andWhere('r.dateReservation >= :startDate')
+                        ->andWhere('r.dateReservation <= :endDate')
+                        ->setParameter('startDate', $startDate)
+                        ->setParameter('endDate', $endDate);
+                        
+                    error_log('Requête SQL événements: ' . $eventQueryBuilder->getQuery()->getSQL());
+                }
+            } catch (\Exception $e) {
+                error_log('Erreur lors du traitement de la date (événements): ' . $e->getMessage());
+            }
+        }
+        
+        $eventReservations = $eventQueryBuilder->getQuery()->getResult();
+        error_log('Nombre d\'événements trouvés: ' . count($eventReservations));
 
         // Combiner les deux types de réservations
         $allReservations = array_merge($reservations, $eventReservations);
+        
+        // Filtrer par trajet si spécifié
+        if ($trajetFilter) {
+            $allReservations = array_filter($allReservations, function($reservation) use ($trajetFilter) {
+                // Pour annonce normale
+                if ($reservation->getType() == 'TRAJET' && $reservation->getAnnonce() && $reservation->getAnnonce()->getTrajet()) {
+                    $departPoint = $reservation->getAnnonce()->getTrajet()->getDeparturePoint();
+                    $arrivalPoint = $reservation->getAnnonce()->getTrajet()->getArrivalPoint();
+                    $trajetStr = strtolower($departPoint . ' ' . $arrivalPoint);
+                    return stripos($trajetStr, strtolower($trajetFilter)) !== false;
+                }
+                // Pour annonce événement
+                elseif ($reservation->getType() == 'EVENT' && $reservation->getAnnonceEvent()) {
+                    $departPoint = $reservation->getAnnonceEvent()->getDeparturePoint();
+                    $arrivalPoint = $reservation->getAnnonceEvent()->getArrivalPoint();
+                    $trajetStr = strtolower($departPoint . ' ' . $arrivalPoint);
+                    return stripos($trajetStr, strtolower($trajetFilter)) !== false;
+                }
+                return false;
+            });
+        }
         
         // Trier par date de réservation (la plus récente en premier)
         usort($allReservations, function($a, $b) {
@@ -803,7 +907,9 @@ class PassagerController extends AbstractController
         
         return $this->render('passager/historique_reservations.html.twig', [
             'user' => $user,
-            'reservations' => $allReservations
+            'reservations' => $allReservations,
+            'dateFilter' => $dateFilter,
+            'trajetFilter' => $trajetFilter
         ]);
     }
 
@@ -963,30 +1069,53 @@ class PassagerController extends AbstractController
     }
 
     #[Route('/passager/event/annonce/{id}/reserver', name: 'app_passager_event_annonce_reserver')]
-    public function reserverEventAnnonce(int $id, Request $request, AnnonceEventRepository $annonceEventRepository, EntityManagerInterface $entityManager): Response
+    public function reserverEventAnnonce(
+        int $id, 
+        Request $request, 
+        AnnonceEventRepository $annonceEventRepository, 
+        EntityManagerInterface $entityManager,
+        BadWordsFilter $badWordsFilter
+    ): Response
     {
+        $this->denyAccessUnlessGranted('ROLE_PASSAGER');
+        
+        $user = $this->getUser();
         $annonceEvent = $annonceEventRepository->find($id);
         
         if (!$annonceEvent) {
             throw $this->createNotFoundException('Annonce non trouvée');
         }
         
-        // Vérifier si l'annonce est toujours ouverte
-        if ($annonceEvent->getStatus() !== 'ouvert') {
-            $this->addFlash('error', 'Cette annonce n\'est plus disponible pour les réservations.');
-            return $this->redirectToRoute('app_passager_event_annonces', ['id' => $annonceEvent->getEvent()->getIdEvent()]);
+        // Vérifier si l'annonce est disponible pour réservation
+        if ($annonceEvent->getStatus() === 'plein' || $annonceEvent->getStatus() === 'termine') {
+            $this->addFlash('error', 'Désolé, cette annonce n\'est plus disponible pour réservation.');
+            return $this->redirectToRoute('app_passager_event_annonces', ['id' => $annonceEvent->getEvent()->getId()]);
         }
         
-        // Vérifier s'il reste des places
-        if ($annonceEvent->getAvailableSeats() <= 0) {
-            $this->addFlash('error', 'Il n\'y a plus de places disponibles pour cette annonce.');
-            return $this->redirectToRoute('app_passager_event_annonces', ['id' => $annonceEvent->getEvent()->getIdEvent()]);
-        }
+        // Vérifier si l'utilisateur n'a pas déjà réservé cette annonce
+        $existingReservation = $entityManager->getRepository(Reservation::class)
+            ->findOneBy([
+                'annonceEvent' => $annonceEvent,
+                'userId' => $user->getId(),
+                'status' => ['PENDING', 'ACCEPTED']
+            ]);
         
-        $user = $this->getUser();
+        if ($existingReservation) {
+            $this->addFlash('error', 'Vous avez déjà une réservation en cours pour ce trajet.');
+            return $this->redirectToRoute('app_passager_event_annonces', ['id' => $annonceEvent->getEvent()->getId()]);
+        }
         
         if ($request->isMethod('POST')) {
             $comment = $request->request->get('comment');
+            
+            // Vérifier si le commentaire contient des mots inappropriés
+            if ($badWordsFilter->containsBadWords($comment)) {
+                $badWords = $badWordsFilter->getFoundBadWords($comment);
+                $this->addFlash('error', 'Votre commentaire contient des mots inappropriés : ' . implode(', ', $badWords));
+                return $this->render('passager/event_annonce_reserver.html.twig', [
+                    'annonce' => $annonceEvent,
+                ]);
+            }
             
             // Créer une nouvelle réservation
             $reservation = new Reservation();

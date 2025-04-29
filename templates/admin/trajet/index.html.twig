@@ -57,10 +57,12 @@
             display: flex;
             gap: 1rem;
             margin-bottom: 2rem;
+            align-items: center;
         }
         @media (max-width: 768px) {
             .search-container {
                 flex-direction: column;
+                align-items: stretch;
             }
         }
         .action-buttons {
@@ -103,7 +105,18 @@
         {% endfor %}
 
         <div class="search-container">
-            <input type="text" id="search" placeholder="Rechercher un trajet..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <div class="flex-grow">
+                <input type="text" id="search" placeholder="Rechercher par titre, départ ou arrivée..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+                <select id="sortSelect" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Trier par</option>
+                    <option value="recent">Plus récents</option>
+                    <option value="ancien">Plus anciens</option>
+                    <option value="prix-asc">Prix croissant</option>
+                    <option value="prix-desc">Prix décroissant</option>
+                </select>
+            </div>
         </div>
 
         {% if trajets is empty %}
@@ -115,9 +128,14 @@
                 <p class="text-gray-500">Il n'y a actuellement aucun trajet disponible dans le système.</p>
             </div>
         {% else %}
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 trajet-container">
+            <div id="trajetsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {% for trajet in trajets %}
-                    <div class="card bg-white shadow-md overflow-hidden">
+                    <div class="card trajet-card bg-white shadow-md overflow-hidden"
+                         data-titre="{{ trajet.departurePoint ~ ' → ' ~ trajet.arrivalPoint }}"
+                         data-depart="{{ trajet.departurePoint }}"
+                         data-arrivee="{{ trajet.arrivalPoint }}"
+                         data-prix="{{ trajet.price }}"
+                         data-date="{{ trajet.createdAt|date('Ymd') }}">
                         <div class="p-6">
                             <div class="flex justify-between items-start mb-4">
                                 <h3 class="text-lg font-bold text-gray-900">
@@ -129,10 +147,16 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
-                                {{ trajet.price }} €
+                                {{ trajet.price }} DT
                             </div>
                             
                             <div class="pt-4 border-t border-gray-100 action-buttons">
+                                <a href="{{ path('app_map_trajet', {'id': trajet.id}) }}" class="btn btn-indigo">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                    </svg>
+                                    Carte
+                                </a>
                                 <a href="{{ path('app_admin_trajet_show', {'id': trajet.id}) }}" class="btn btn-blue">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -160,6 +184,13 @@
                     </div>
                 {% endfor %}
             </div>
+            <div id="noResultsMessage" class="hidden bg-white p-8 rounded-lg shadow text-center mt-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Aucun trajet trouvé</h3>
+                <p class="text-gray-500">Aucun trajet ne correspond à votre recherche.</p>
+            </div>
         {% endif %}
     </div>
 </div>
@@ -170,19 +201,72 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('search');
-            const trajetCards = document.querySelectorAll('.card');
+            const sortSelect = document.getElementById('sortSelect');
+            const trajetCards = document.querySelectorAll('.trajet-card');
+            const trajetsContainer = document.getElementById('trajetsContainer');
+            const noResultsMessage = document.getElementById('noResultsMessage');
             
+            // Search functionality
             function filterTrajets() {
-                const searchTerm = searchInput.value.toLowerCase();
+                const searchValue = searchInput.value.toLowerCase();
+                let visibleCount = 0;
                 
                 trajetCards.forEach(card => {
-                    const textContent = card.textContent.toLowerCase();
-                    const isVisible = textContent.includes(searchTerm);
-                    card.style.display = isVisible ? '' : 'none';
+                    const titre = card.dataset.titre.toLowerCase();
+                    const depart = card.dataset.depart.toLowerCase();
+                    const arrivee = card.dataset.arrivee.toLowerCase();
+                    
+                    // Search by title, departure or arrival
+                    if (
+                        titre.includes(searchValue) || 
+                        depart.includes(searchValue) || 
+                        arrivee.includes(searchValue)
+                    ) {
+                        card.classList.remove('hidden');
+                        visibleCount++;
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                });
+                
+                // Show or hide no results message
+                if (visibleCount === 0 && trajetCards.length > 0) {
+                    noResultsMessage.classList.remove('hidden');
+                } else {
+                    noResultsMessage.classList.add('hidden');
+                }
+            }
+            
+            // Sorting functionality
+            function sortTrajets() {
+                const sortValue = sortSelect.value;
+                let cardsArray = Array.from(trajetCards);
+                
+                // Sort based on selected value
+                if (sortValue === 'recent') {
+                    cardsArray.sort((a, b) => b.dataset.date - a.dataset.date);
+                } else if (sortValue === 'ancien') {
+                    cardsArray.sort((a, b) => a.dataset.date - b.dataset.date);
+                } else if (sortValue === 'prix-asc') {
+                    cardsArray.sort((a, b) => parseFloat(a.dataset.prix) - parseFloat(b.dataset.prix));
+                } else if (sortValue === 'prix-desc') {
+                    cardsArray.sort((a, b) => parseFloat(b.dataset.prix) - parseFloat(a.dataset.prix));
+                }
+                
+                // Reorder DOM elements
+                cardsArray.forEach(card => {
+                    trajetsContainer.appendChild(card);
                 });
             }
             
-            searchInput.addEventListener('input', filterTrajets);
+            // Add event listeners
+            if (searchInput) {
+                searchInput.addEventListener('input', filterTrajets);
+            }
+            
+            if (sortSelect) {
+                sortSelect.addEventListener('change', sortTrajets);
+            }
         });
     </script>
 {% endblock %} 

@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Repository\AvisRepository;
 use App\Repository\AnnonceRepository;
+use App\Repository\CategorieRepository;
 use App\Repository\ReclamationRepository;
 use App\Repository\ReservationRepository;
 use App\Repository\UtilisateurRepository;
@@ -22,6 +23,7 @@ class AdminController extends AbstractController
         AnnonceRepository $annonceRepository,
         ReservationRepository $reservationRepository,
         AvisRepository $avisRepository,
+        CategorieRepository $categorieRepository,
         EntityManagerInterface $entityManager
     ): Response {
         // Make sure only users with ROLE_ADMIN can access this page
@@ -32,6 +34,11 @@ class AdminController extends AbstractController
         // Get count of active reclamations (pending and in_progress)
         $reclamationsCount = $reclamationRepository->countByStatus(['pending', 'in_progress']);
         
+        // Get all categories
+        $categories = $categorieRepository->findAll();
+        $categoriesWithCars = $categorieRepository->findWithCars();
+        $recentCategories = $categorieRepository->findRecent(5);
+        
         // Comprehensive statistics for the dashboard
         $stats = [
             // User statistics
@@ -40,6 +47,13 @@ class AdminController extends AbstractController
                 'conducteurs' => $utilisateurRepository->countByRole('CONDUCTEUR'),
                 'passagers' => $utilisateurRepository->countByRole('PASSAGER'),
                 'active' => $utilisateurRepository->countActive(),
+            ],
+            
+            // Category statistics
+            'categories' => [
+                'total' => count($categories),
+                'with_cars' => count($categoriesWithCars),
+                'recent' => $recentCategories,
             ],
             
             // Annonce statistics

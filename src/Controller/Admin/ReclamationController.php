@@ -3,8 +3,11 @@
 namespace App\Controller\Admin;
 
 use App\Entity\Reclamation;
+use App\Entity\Reponse;
 use App\Form\ReclamationResponseType;
+use App\Form\ReponseType;
 use App\Repository\ReclamationRepository;
+use App\Repository\ReponseRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -55,27 +58,34 @@ class ReclamationController extends AbstractController
         // Make sure only users with ROLE_ADMIN can access this page
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
         
-        if ($request->isMethod('POST')) {
-            $replyContent = $request->request->get('reply');
+        // Create a new Reponse object
+        $reponse = new Reponse();
+        $reponse->setReclamation($reclamation);
+        $reponse->setAdminUsername($this->getUser()->getUserIdentifier());
+        
+        $form = $this->createForm(ReponseType::class, $reponse);
+        $form->handleRequest($request);
+        
+        if ($form->isSubmitted() && $form->isValid()) {
+            // Update the reclamation status if needed
             $newStatus = $request->request->get('status');
-            
-            if (empty($replyContent)) {
-                $this->addFlash('error', 'La réponse ne peut pas être vide');
-                return $this->redirectToRoute('app_admin_reclamation_reply', ['id' => $reclamation->getId()]);
+            if ($newStatus && in_array($newStatus, ['pending', 'in_progress', 'resolved', 'rejected'])) {
+                $reclamation->setState($newStatus);
             }
             
-            // Update the reclamation
-            $reclamation->setReply($replyContent);
-            $reclamation->setState($newStatus);
-            
+            // Save the response
+            $entityManager->persist($reponse);
             $entityManager->flush();
             
             $this->addFlash('success', 'Votre réponse a été enregistrée avec succès');
             return $this->redirectToRoute('app_admin_reclamation_show', ['id' => $reclamation->getId()]);
+        } elseif ($form->isSubmitted() && !$form->isValid()) {
+            $this->addFlash('error', 'Veuillez corriger les erreurs dans le formulaire');
         }
         
         return $this->render('admin/reclamation/reply.html.twig', [
             'reclamation' => $reclamation,
+            'form' => $form->createView(),
             'user' => $this->getUser(),
         ]);
     }
@@ -121,51 +131,55 @@ class ReclamationController extends AbstractController
     #[Route('/{id}/respond', name: 'app_admin_reclamation_respond', methods: ['GET', 'POST'])]
     public function respond(Request $request, Reclamation $reclamation, EntityManagerInterface $entityManager): Response
     {
+        // Make sure only users with ROLE_ADMIN can access this page
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        
         $form = $this->createForm(ReclamationResponseType::class, $reclamation);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            // Ajoutons du débogage pour voir ce qui se passe
-            dump($reclamation); // Afficher l'objet complet
-            dump($reclamation->getStatus()); // Vérifier si le status est bien défini
-            
-            // Ajout d'une date de mise à jour si nécessaire
-            if (method_exists($reclamation, 'setUpdatedAt')) {
-                $reclamation->setUpdatedAt(new \DateTime());
-            }
-            
-            // Forcer explicitement le status
-            $status = $form->get('status')->getData();
-            if ($status) {
-                $reclamation->setStatus($status);
-            }
-            
-            // Persistez les changements en base de données
+            // Update reclamation status
             $entityManager->persist($reclamation);
-            $entityManager->flush();
             
-            // Pour déboguer, nouvelle vérification après flush
-            dump($reclamation->getStatus()); // Le status après sauvegarde
-            // die; // Décommentez pour arrêter l'exécution et voir les valeurs
+            // Create a new response if content is provided
+            $content = $form->get('content')->getData();
+            if (!empty($content)) {
+                // Create and configure the response
+                $reponse = new Reponse();
+                $reponse->setContent($content);
+                $reponse->setReclamation($reclamation);
+                $reponse->setAdminUsername($this->getUser()->getUserIdentifier());
+                
+                // Save the response
+                $entityManager->persist($reponse);
+            }
+            
+            $entityManager->flush();
 
             $this->addFlash('success', 'La réponse a été enregistrée avec succès.');
             
-            // Corrigeons la redirection pour utiliser le bon nom de route
-            return $this->redirectToRoute('admin_reclamations_show', ['id' => $reclamation->getId()]);
+            // Redirection vers la page de détail
+            return $this->redirectToRoute('app_admin_reclamation_show', ['id' => $reclamation->getId()]);
+        } elseif ($form->isSubmitted() && !$form->isValid()) {
+            $this->addFlash('error', 'Veuillez corriger les erreurs dans le formulaire');
         }
 
         return $this->render('admin/reclamation/respond.html.twig', [
             'reclamation' => $reclamation,
-            'form' => $form,
+            'form' => $form->createView(),
+            'user' => $this->getUser(),
         ]);
     }
 
     /**
      * Action pour mettre à jour tous les statuts
      */
-    #[Route('/update-all-status', name: 'admin_reclamations_update_all_status', methods: ['GET'])]
+    #[Route('/update-all-status', name: 'app_admin_reclamation_update_all_status', methods: ['GET'])]
     public function updateAllStatus(ReclamationRepository $reclamationRepository, EntityManagerInterface $entityManager): Response
     {
+        // Make sure only users with ROLE_ADMIN can access this page
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        
         // Récupérer toutes les réclamations
         $reclamations = $reclamationRepository->findAll();
         $updatedCount = 0;
@@ -202,15 +216,18 @@ class ReclamationController extends AbstractController
         $entityManager->flush();
         
         $this->addFlash('success', $updatedCount . ' réclamations ont été mises à jour avec succès.');
-        return $this->redirectToRoute('admin_reclamation');
+        return $this->redirectToRoute('app_admin_reclamation_index');
     }
 
     /**
      * Action pour corriger les problèmes de statut dans une seule réclamation
      */
-    #[Route('/{id}/fix-status', name: 'admin_reclamations_fix_status', methods: ['GET'])]
+    #[Route('/{id}/fix-status', name: 'app_admin_reclamation_fix_status', methods: ['GET'])]
     public function fixStatus(Reclamation $reclamation, EntityManagerInterface $entityManager): Response
     {
+        // Make sure only users with ROLE_ADMIN can access this page
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        
         // Si le statut est vide, le définir à "pending"
         if (empty($reclamation->getStatus())) {
             $reclamation->setStatus('pending');
@@ -243,10 +260,10 @@ class ReclamationController extends AbstractController
             }
         }
         
-        // Sauvegarder les modifications
+        // Enregistrer les modifications
         $entityManager->flush();
         
         $this->addFlash('success', 'Le statut de la réclamation a été corrigé avec succès.');
-        return $this->redirectToRoute('admin_reclamations_show', ['id' => $reclamation->getId()]);
+        return $this->redirectToRoute('app_admin_reclamation_show', ['id' => $reclamation->getId()]);
     }
 } 

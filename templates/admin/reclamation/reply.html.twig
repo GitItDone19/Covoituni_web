@@ -73,20 +73,23 @@
                 </div>
             </div>
             
-            {% if reclamation.reply %}
+            {% if reclamation.reponses is not empty %}
                 <div class="mt-6">
                     <h3 class="text-lg font-semibold text-gray-700 mb-2 flex items-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                         </svg>
-                        Réponse précédente
+                        Réponses précédentes
                     </h3>
-                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                        <p class="text-gray-700 whitespace-pre-line">{{ reclamation.reply }}</p>
-                    </div>
-                    <div class="mt-2 text-xs text-gray-500 italic">
-                        Vous allez remplacer cette réponse par une nouvelle.
-                    </div>
+                    {% for reponse in reclamation.reponses %}
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium text-gray-600">{{ reponse.adminUsername }}</span>
+                                <span class="text-xs text-gray-500">{{ reponse.date|date('d/m/Y à H:i') }}</span>
+                            </div>
+                            <p class="text-gray-700 whitespace-pre-line">{{ reponse.content }}</p>
+                        </div>
+                    {% endfor %}
                 </div>
             {% endif %}
         </div>
@@ -152,7 +155,7 @@
             Répondre à la réclamation
         </h2>
         
-        <form action="{{ path('app_admin_reclamation_reply', {'id': reclamation.id}) }}" method="post" class="space-y-6">
+        {{ form_start(form, {'attr': {'class': 'space-y-6'}}) }}
             <div class="bg-gray-50 rounded-lg p-5 border border-gray-100">
                 <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Statut de la réclamation</label>
                 <select id="status" name="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary bg-white">
@@ -164,10 +167,15 @@
             </div>
             
             <div>
-                <label for="reply" class="block text-sm font-medium text-gray-700 mb-2">Votre réponse</label>
-                <textarea id="reply" name="reply" rows="8" required
-                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary"
-                          placeholder="Rédigez votre réponse détaillée à cette réclamation...">{{ reclamation.reply }}</textarea>
+                {{ form_label(form.content, 'Votre réponse', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 mb-2'}}) }}
+                {{ form_widget(form.content, {
+                    'attr': {
+                        'rows': 8,
+                        'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary',
+                        'placeholder': 'Rédigez votre réponse détaillée à cette réclamation...'
+                    }
+                }) }}
+                {{ form_errors(form.content, {'attr': {'class': 'text-red-500 text-sm mt-1'}}) }}
             </div>
             
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -195,6 +203,6 @@
                     </button>
                 </div>
             </div>
-        </form>
+        {{ form_end(form) }}
     </div>
 {% endblock %} 

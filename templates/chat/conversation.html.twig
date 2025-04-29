@@ -111,20 +111,23 @@
 
         <div class="mt-4">
             <form id="message-form" action="{{ path('app_chat_send', {'reservationId': reservation.id, 'type': type}) }}" method="post">
-                <div class="flex">
-                    <textarea 
-                        name="message" 
-                        id="message-input"
-                        rows="3" 
-                        class="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                        placeholder="Écrivez votre message..."></textarea>
-                    <button 
-                        type="submit" 
-                        class="px-6 bg-primary text-white rounded-r-lg hover:bg-primary-dark transition-colors duration-300 flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
-                    </button>
+                <div class="flex flex-col">
+                    <div class="flex">
+                        <textarea 
+                            name="message" 
+                            id="message-input"
+                            rows="3" 
+                            class="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                            placeholder="Écrivez votre message..."></textarea>
+                        <button 
+                            type="submit" 
+                            class="px-6 bg-primary text-white rounded-r-lg hover:bg-primary-dark transition-colors duration-300 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="error-message" class="text-red-500 text-sm mt-1 hidden">Votre message est vide</div>
                 </div>
             </form>
         </div>
@@ -180,7 +183,17 @@
                 e.preventDefault();
                 
                 const message = messageInput.value.trim();
-                if (!message) return;
+                const errorMessage = document.getElementById('error-message');
+                
+                if (!message) {
+                    errorMessage.classList.remove('hidden');
+                    messageInput.classList.add('border-red-500');
+                    return;
+                }
+                
+                // Cacher le message d'erreur
+                errorMessage.classList.add('hidden');
+                messageInput.classList.remove('border-red-500');
                 
                 // Ajouter le message visuellement immédiatement
                 addMessage({

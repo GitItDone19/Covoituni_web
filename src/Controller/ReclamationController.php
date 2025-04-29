@@ -67,6 +67,8 @@ class ReclamationController extends AbstractController
 
             $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
             return $this->redirectToRoute('app_passager_mes_reclamations');
+        } elseif ($form->isSubmitted() && !$form->isValid()) {
+            $this->addFlash('error', 'Veuillez corriger les erreurs dans le formulaire');
         }
 
         return $this->render('passager/reclamation/new.html.twig', [
@@ -97,6 +99,8 @@ class ReclamationController extends AbstractController
             
             $this->addFlash('success', 'Votre réclamation a été mise à jour avec succès');
             return $this->redirectToRoute('app_passager_reclamation_show', ['id' => $reclamation->getId()]);
+        } elseif ($form->isSubmitted() && !$form->isValid()) {
+            $this->addFlash('error', 'Veuillez corriger les erreurs dans le formulaire');
         }
 
         return $this->render('passager/reclamation/edit.html.twig', [

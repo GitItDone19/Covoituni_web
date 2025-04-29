@@ -19,32 +19,37 @@
             </div>
             
             <div class="mb-6">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                    <div class="flex items-center">
-                        <div class="relative">
-                            <input type="text" placeholder="Rechercher..." class="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
+                <form action="{{ path('app_conducteur_liste_annonce') }}" method="GET" class="mb-6">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                        <div class="flex items-center">
+                            <div class="relative">
+                                <input type="text" name="search" placeholder="Rechercher par titre..." value="{{ app.request.query.get('search') }}" class="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                            <button type="submit" class="ml-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors duration-300">
+                                Rechercher
+                            </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <select name="status" class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50" onchange="this.form.submit()">
+                                <option value="" {% if app.request.query.get('status') is null or app.request.query.get('status') == '' %}selected{% endif %}>Tous les statuts</option>
+                                <option value="ouvert" {% if app.request.query.get('status') == 'ouvert' %}selected{% endif %}>Actif</option>
+                                <option value="plein" {% if app.request.query.get('status') == 'plein' %}selected{% endif %}>Complet</option>
+                                <option value="termine" {% if app.request.query.get('status') == 'termine' %}selected{% endif %}>Terminé</option>
+                                <option value="annule" {% if app.request.query.get('status') == 'annule' %}selected{% endif %}>Annulé</option>
+                            </select>
+                            <select name="sort" class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50" onchange="this.form.submit()">
+                                <option value="" {% if app.request.query.get('sort') is null or app.request.query.get('sort') == '' %}selected{% endif %}>Trier par</option>
+                                <option value="recent" {% if app.request.query.get('sort') == 'recent' %}selected{% endif %}>Plus récents</option>
+                                <option value="ancien" {% if app.request.query.get('sort') == 'ancien' %}selected{% endif %}>Plus anciens</option>
+                                <option value="prix-asc" {% if app.request.query.get('sort') == 'prix-asc' %}selected{% endif %}>Prix croissant</option>
+                                <option value="prix-desc" {% if app.request.query.get('sort') == 'prix-desc' %}selected{% endif %}>Prix décroissant</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="flex gap-2">
-                        <select class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
-                            <option value="">Tous les statuts</option>
-                            <option value="actif">Actif</option>
-                            <option value="complet">Complet</option>
-                            <option value="termine">Terminé</option>
-                            <option value="annule">Annulé</option>
-                        </select>
-                        <select class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
-                            <option value="">Trier par</option>
-                            <option value="recent">Plus récents</option>
-                            <option value="ancien">Plus anciens</option>
-                            <option value="prix-asc">Prix croissant</option>
-                            <option value="prix-desc">Prix décroissant</option>
-                        </select>
-                    </div>
-                </div>
+                </form>
                 
                 {% if annonces is empty %}
                     <div class="bg-gray-50 rounded-xl p-8 text-center">
@@ -107,7 +112,13 @@
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            <span class="text-gray-700 font-medium">{{ annonce.trajet.price }}€</span>
+                                            <div class="text-sm font-medium">
+                                                {% if annonce.trajet %}
+                                                    {{ annonce.trajet.price }} DT
+                                                {% else %}
+                                                    - DT
+                                                {% endif %}
+                                            </div>
                                         </div>
                                         <div class="flex items-start">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

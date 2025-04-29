@@ -3,8 +3,11 @@
 namespace App\Entity;
 
 use App\Repository\ReclamationRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ReclamationRepository::class)]
 class Reclamation
@@ -15,9 +18,21 @@ class Reclamation
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: "Le sujet est obligatoire")]
+    #[Assert\Length(
+        min: 5,
+        max: 255,
+        minMessage: "Le sujet doit contenir au moins {{ limit }} caractères",
+        maxMessage: "Le sujet ne peut pas dépasser {{ limit }} caractères"
+    )]
     private ?string $subject = null;
 
     #[ORM\Column(type: Types::TEXT)]
+    #[Assert\NotBlank(message: "La description est obligatoire")]
+    #[Assert\Length(
+        min: 10,
+        minMessage: "La description doit contenir au moins {{ limit }} caractères",
+    )]
     private ?string $description = null;
 
     #[ORM\ManyToOne(inversedBy: 'reclamations')]
@@ -25,10 +40,10 @@ class Reclamation
     private ?Utilisateur $user = null;
 
     #[ORM\Column(length: 20, options: ["default" => "pending"])]
-    #[Assert\NotBlank]
+    #[Assert\NotBlank(message: "Le statut est obligatoire")]
     #[Assert\Choice(
         choices: ['pending', 'in_progress', 'resolved', 'rejected'],
-        message: "Choose a valid status: pending, in_progress, resolved, or rejected"
+        message: "Statut invalide. Les options disponibles sont: en attente, en cours, résolu, rejeté"
     )]
     // Note: All methods (getStatus/setStatus and getState/setState) use this property
     private ?string $status = "pending";
@@ -36,14 +51,15 @@ class Reclamation
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $date = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $reply = null;
+    #[ORM\OneToMany(mappedBy: 'reclamation', targetEntity: Reponse::class, orphanRemoval: true)]
+    private Collection $reponses;
 
     public function __construct()
     {
         // Initialiser la date avec la date actuelle lors de la création
         $this->date = new \DateTime();
         $this->status = 'pending';
+        $this->reponses = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -130,14 +146,32 @@ class Reclamation
         return $this;
     }
 
-    public function getReply(): ?string
+    /**
+     * @return Collection<int, Reponse>
+     */
+    public function getReponses(): Collection
     {
-        return $this->reply;
+        return $this->reponses;
     }
 
-    public function setReply(?string $reply): static
+    public function addReponse(Reponse $reponse): static
     {
-        $this->reply = $reply;
+        if (!$this->reponses->contains($reponse)) {
+            $this->reponses->add($reponse);
+            $reponse->setReclamation($this);
+        }
+
+        return $this;
+    }
+
+    public function removeReponse(Reponse $reponse): static
+    {
+        if ($this->reponses->removeElement($reponse)) {
+            // set the owning side to null (unless already changed)
+            if ($reponse->getReclamation() === $this) {
+                $reponse->setReclamation(null);
+            }
+        }
 
         return $this;
     }
