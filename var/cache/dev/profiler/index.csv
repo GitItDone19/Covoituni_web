@@ -1,0 +1,11 @@
+aec55e,127.0.0.1,GET,http://127.0.0.1:8000/logout,1745944890,,302,request
+e56014,127.0.0.1,GET,http://127.0.0.1:8000/,1745944890,,200,request
+061d70,127.0.0.1,GET,http://127.0.0.1:8000/login,1745944899,,200,request
+61ba79,127.0.0.1,POST,http://127.0.0.1:8000/login,1745944906,,302,request
+6b9c2c,127.0.0.1,GET,http://127.0.0.1:8000/login-redirect,1745944907,,302,request
+31a6dd,127.0.0.1,GET,http://127.0.0.1:8000/passager/dashboard,1745944907,,200,request
+1ace99,127.0.0.1,GET,http://127.0.0.1:8000/passager/liste-annonce,1745944910,,200,request
+4c9835,127.0.0.1,GET,http://127.0.0.1:8000/passager/rechercher-par-position,1745944911,,302,request
+9f297b,127.0.0.1,GET,http://127.0.0.1:8000/passager/liste-annonce?currentLocation=Tunisia%2C%20Borj%20Louzir&search=Borj%20Louzir,1745944912,,200,request
+43831b,127.0.0.1,GET,http://127.0.0.1:8000/passager/rechercher-par-position,1745944921,,302,request
+fea5b2,127.0.0.1,GET,http://127.0.0.1:8000/passager/liste-annonce?currentLocation=Tunisia%2C%20Borj%20Louzir&search=Borj%20Louzir,1745944922,,200,request

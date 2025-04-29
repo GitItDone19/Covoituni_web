@@ -24,6 +24,7 @@ use App\Repository\AnnonceEventRepository;
 use App\Repository\EventParticipationRepository;
 use App\Entity\EventParticipation;
 use App\Service\BadWordsFilter;
+use App\Service\IpGeoLocationService;
 
 #[Route('/passager')]
 class PassagerController extends AbstractController
@@ -360,7 +361,7 @@ class PassagerController extends AbstractController
     }
     
     #[Route('/liste-annonce', name: 'app_passager_liste_annonce')]
-    public function listeAnnonce(Request $request, AnnonceRepository $annonceRepository): Response
+    public function listeAnnonce(Request $request, AnnonceRepository $annonceRepository, IpGeoLocationService $ipGeoLocationService): Response
     {
         // Make sure only users with ROLE_PASSAGER can access this page
         $this->denyAccessUnlessGranted('ROLE_PASSAGER');
@@ -371,11 +372,18 @@ class PassagerController extends AbstractController
         $search = $request->query->get('search');
         $status = $request->query->get('status');
         $sort = $request->query->get('sort');
+        $location = $request->query->get('location');
+        
+        // Obtenir la position formatée
+        $formattedLocation = '';
+        if ($location) {
+            $formattedLocation = $location;
+        }
         
         // Récupérer les annonces actives depuis la base de données avec les filtres
-        if ($search || $status || $sort) {
+        if ($search || $status || $sort || $location) {
             // Si des filtres sont appliqués, utiliser les filtres personnalisés
-            $annonces = $annonceRepository->findWithFilters($search, $status, $sort);
+            $annonces = $annonceRepository->findWithFilters($search, $status, $sort, $location);
         } else {
             // Sinon, utiliser la méthode existante pour les annonces actives
             $annonces = $annonceRepository->findActiveAnnouncements();
@@ -383,7 +391,33 @@ class PassagerController extends AbstractController
         
         return $this->render('passager/liste_annonce.html.twig', [
             'user' => $user,
-            'annonces' => $annonces
+            'annonces' => $annonces,
+            'currentLocation' => $formattedLocation
+        ]);
+    }
+
+    #[Route('/rechercher-par-position', name: 'app_passager_rechercher_position', methods: ['GET'])]
+    public function rechercherParPosition(
+        IpGeoLocationService $ipGeoLocationService, 
+        AnnonceRepository $annonceRepository
+    ): Response
+    {
+        // Make sure only users with ROLE_PASSAGER can access this page
+        $this->denyAccessUnlessGranted('ROLE_PASSAGER');
+        
+        // Obtenir les données de localisation
+        $locationData = $ipGeoLocationService->getLocationFromIp();
+        $formattedLocation = $ipGeoLocationService->getFormattedLocation();
+        
+        if (!$locationData || !isset($locationData['city'])) {
+            $this->addFlash('error', 'Impossible de déterminer votre position actuelle.');
+            return $this->redirectToRoute('app_passager_liste_annonce');
+        }
+        
+        // Mettre la position dans le champ de recherche et utiliser comme filtre de recherche
+        return $this->redirectToRoute('app_passager_liste_annonce', [
+            'search' => $locationData['city'],
+            'currentLocation' => $formattedLocation
         ]);
     }
 

@@ -22,7 +22,7 @@
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                     <div class="flex items-center">
                         <div class="relative">
-                            <input type="text" name="search" placeholder="Rechercher par titre..." value="{{ app.request.query.get('search') }}" class="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+                            <input type="text" name="search" placeholder="Rechercher par titre, départ ou arrivée..." value="{{ app.request.query.get('search') }}" class="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
@@ -30,6 +30,21 @@
                         <button type="submit" class="ml-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors duration-300">
                             Rechercher
                         </button>
+                        <a href="{{ path('app_passager_rechercher_position') }}" class="ml-2 px-4 py-2 flex items-center bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Position actuelle
+                        </a>
+                        {% if currentLocation %}
+                            <div class="ml-3 flex items-center text-gray-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                </svg>
+                                <span>{{ currentLocation }}</span>
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="flex gap-2">
                         <select name="status" class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50" onchange="this.form.submit()">

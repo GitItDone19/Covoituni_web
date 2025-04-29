@@ -175,7 +175,7 @@ class AnnonceRepository extends ServiceEntityRepository
     /**
      * @return Annonce[] Returns an array of Annonce objects filtered by search, status and sorting
      */
-    public function findWithFilters(?string $search = null, ?string $status = null, ?string $sort = null): array
+    public function findWithFilters(?string $search = null, ?string $status = null, ?string $sort = null, ?string $location = null): array
     {
         $qb = $this->createQueryBuilder('a')
             ->join('a.trajet', 't');
@@ -189,6 +189,12 @@ class AnnonceRepository extends ServiceEntityRepository
             $qb->andWhere('a.titre LIKE :search OR t.titre LIKE :search 
                            OR t.departurePoint LIKE :search OR t.arrivalPoint LIKE :search')
                ->setParameter('search', '%' . $search . '%');
+        }
+        
+        // Filtre par localisation si spécifiée
+        if ($location && !empty($location)) {
+            $qb->andWhere('t.departurePoint LIKE :location')
+               ->setParameter('location', '%' . $location . '%');
         }
         
         // Filtre par statut d'annonce si un statut est spécifié
