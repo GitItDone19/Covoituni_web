@@ -32,7 +32,7 @@ class MapController extends AbstractController
             ]);
         } catch (\Exception $e) {
             $this->addFlash('error', $e->getMessage());
-            return $this->redirectToRoute('app_conducteur_liste_trajet');
+            return $this->redirectToRoute('app_passager_liste_trajet');
         }
     }
 
