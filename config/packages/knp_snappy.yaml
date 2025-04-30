@@ -1,0 +1,16 @@
+knp_snappy:
+    pdf:
+        enabled:    true
+        binary:     '"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"'
+        options:
+            - { name: 'enable-local-file-access', value: true }
+            - { name: 'lowquality', value: false }
+            - { name: 'page-size', value: 'A4' }
+            - { name: 'encoding', value: 'UTF-8' }
+            - { name: 'images', value: true }
+            - { name: 'footer-line', value: true }
+            - { name: 'enable-external-links', value: true }
+    image:
+        enabled:    true
+        binary:     '"C:\Program Files\wkhtmltopdf\bin\wkhtmltoimage.exe"'
+        options:    [] 
