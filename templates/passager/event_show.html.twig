@@ -1,0 +1,184 @@
+{% extends 'layouts/user_layout.html.twig' %}
+
+{% block title %}{{ event.nom }} - Détails de l'événement{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link href="https://cdn.jsdelivr.net/npm/@fullcalendar/core@4.4.0/main.min.css" rel="stylesheet" />
+    <style>
+        .calendar-container { height: 350px; margin-top: 1.5rem; }
+        .fc-button, .fc-button-active, .fc-event {
+            background-color: #f9fafb; color: #374151;
+            border-radius: 0.75rem; border: 1px solid #e5e7eb;
+            transition: background-color 0.3s;
+        }
+        .fc-button:hover { background-color: #f3f4f6; }
+        .fc-button-active { background-color: #3b82f6; color: #ffffff; }
+        .fc-event { background-color: #3b82f6; border-color: #2563eb; color: #ffffff; border-radius: 0.5rem; }
+        .confirmation-message {
+            display: none; margin-top: 1rem; padding: 0.75rem;
+            background-color: #f0fdf4; border: 1px solid #bbf7d0;
+            color: #166534; border-radius: 0.5rem; text-align: center;
+        }
+        .qr-code-container {
+            margin-left: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100px;
+            height: 100px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .qr-code-container img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+    </style>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@4.4.0/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@4.4.0/main.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            if (calendarEl) {
+                const calendar = new FullCalendar.Calendar(calendarEl, {
+                    plugins: ['dayGrid'],
+                    initialView: 'dayGridMonth',
+                    locale: 'fr',
+                    initialDate: '{{ event.dateEvent|date("Y-m-d") }}',
+                    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth' },
+                    events: [
+                        {
+                            title: '{{ event.nom|e('js') }}',
+                            start: '{{ event.dateEvent|date("Y-m-d") }}T{{ event.heureEvent|date("H:i:s") }}',
+                        }
+                    ]
+                });
+                calendar.render();
+            }
+
+            const cancelBtn = document.getElementById('cancelParticipationBtn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (confirm('Êtes-vous sûr de vouloir annuler votre participation ?')) {
+                        document.getElementById('confirmationMessage').style.display = 'block';
+                        setTimeout(() => {
+                            this.closest('form').submit();
+                        }, 1000);
+                    }
+                });
+            }
+        });
+    </script>
+{% endblock %}
+
+{% block content %}
+<div class="w-full">
+    <div class="glass-card bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-xl p-8 mb-8">
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <h1 class="text-3xl font-bold mb-2 text-gray-800">{{ event.nom }}</h1>
+                <div class="flex items-center space-x-2">
+                    <span class="px-3 py-1 bg-gray-100 text-gray-800 text-xs font-semibold rounded-full">{{ event.typeEvent.nom }}</span>
+                    <span class="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">{{ event.status }}</span>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <a href="{{ path('app_passager_event_annonces', {'id': event.idEvent}) }}" class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-dark transition">Voir les conducteurs</a>
+                <a href="{{ path('app_passager_events') }}" class="inline-flex items-center px-4 py-2 bg-gray-50 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-100 transition">Retour</a>
+            </div>
+        </div>
+
+        {% for label, messages in { 'success': app.flashes('success'), 'error': app.flashes('error'), 'info': app.flashes('info') } %}
+            {% for message in messages %}
+                <div class="p-4 mb-6 rounded {{ label == 'success' ? 'bg-green-100 border-green-500 text-green-700' : (label == 'error' ? 'bg-red-100 border-red-500 text-red-700' : 'bg-blue-100 border-blue-500 text-blue-700') }}" role="alert">
+                    <p>{{ message }}</p>
+                </div>
+            {% endfor %}
+        {% endfor %}
+
+        <div class="bg-white rounded-xl shadow-md overflow-hidden mb-6 p-6">
+            <div class="flex flex-col md:flex-row md:justify-between gap-6">
+                <div class="md:w-2/3 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800 mb-2">Informations</h2>
+                        <div class="text-gray-700 space-y-2">
+                            <p>📍 {{ event.lieu }}</p>
+                            <p>📅 {{ event.dateEvent|date('d/m/Y') }}</p>
+                            <p>⏰ {{ event.heureEvent|date('H:i') }}</p>
+                        </div>
+                    </div>
+
+                    {% if event.description %}
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800 mb-2">Description</h2>
+                            <p>{{ event.description }}</p>
+                        </div>
+                    {% endif %}
+
+                    <div class="mt-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Calendrier</h2>
+                        <div class="flex gap-6">
+                            <div class="calendar-container flex-1">
+                                <div id="calendar"></div>
+                            </div>
+
+                            {% if weatherData is not null %}
+                                <div class="w-64 shrink-0">
+                                    {% if weatherData.error is defined %}
+                                        <div class="p-4 bg-red-50 text-red-700 rounded-xl h-full flex items-center justify-center">
+                                            <p>{{ weatherData.error }}</p>
+                                        </div>
+                                    {% else %}
+                                        <div class="p-4 bg-white rounded-xl shadow-sm h-full">
+                                            <h3 class="text-lg font-semibold text-gray-800 mb-3">Météo</h3>
+                                            <div class="text-center space-y-4">
+                                                <img src="{{ weatherData.iconUrl }}" alt="Weather icon" class="w-20 h-20 mx-auto">
+                                                <p class="text-3xl font-bold">{{ weatherData.temperature }}</p>
+                                                <p class="text-gray-600">{{ weatherData.description }}</p>
+                                                <div class="grid grid-cols-2 gap-2 text-sm text-gray-500 pt-4 border-t">
+                                                    <p>💧 {{ weatherData.humidity }}</p>
+                                                    <p>🌬 {{ weatherData.wind }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+
+                            <!-- QR Code Section -->
+                            <div class="qr-code-container">
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?data={{ event.idEvent }}&size=100x100" alt="QR Code" />
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="md:w-1/3">
+                    <div class="bg-gray-50 rounded-xl p-4 text-center">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Participation</h2>
+                        {% if isParticipant %}
+                            <div class="bg-green-100 text-green-800 rounded-xl p-4 mb-4">✅ Vous participez</div>
+                            <form action="{{ path('app_passager_event_annuler_participation', {'id': event.idEvent}) }}" method="POST">
+                                <button type="submit" id="cancelParticipationBtn" class="inline-flex items-center justify-center w-full px-4 py-2 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition">Annuler ma participation</button>
+                                <div id="confirmationMessage" class="confirmation-message">✅ Participation annulée avec succès</div>
+                            </form>
+                        {% else %}
+                            <form action="{{ path('app_passager_event_participer', {'id': event.idEvent}) }}" method="POST">
+                                <button type="submit" class="inline-flex items-center justify-center w-full px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-dark transition">Participer</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends 'layouts/user_layout.html.twig' %}
+
+{% block title %}Créer un événement - Conducteur{% endblock %}
+
+{% block content %}
+<div class="w-full">
+    <div class="glass-card bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-xl p-8 mb-8">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-3xl font-bold mb-2 text-gray-800">Créer un événement</h1>
+                <p class="text-gray-600">Créez un nouvel événement universitaire pour le covoiturage.</p>
+            </div>
+            <a href="{{ path('app_conducteur_events') }}" class="inline-flex items-center px-4 py-2 bg-gray-50 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-100 transition duration-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Retour à la liste
+            </a>
+        </div>
+
+        {% for message in app.flashes('success') %}
+            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded" role="alert">
+                <p>{{ message }}</p>
+            </div>
+        {% endfor %}
+
+        {% for message in app.flashes('error') %}
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded" role="alert">
+                <p>{{ message }}</p>
+            </div>
+        {% endfor %}
+
+        <form action="{{ path('app_conducteur_event_create') }}" method="post" class="space-y-6" id="eventForm" novalidate>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                {% set fields = {
+                    'nom': "Nom de l'événement *",
+                    'type': "Type d'événement *",
+                    'date': "Date de l'événement *",
+                    'heure': "Heure de l'événement *",
+                    'lieu': "Lieu *"
+                } %}
+
+                <div>
+                    <label for="nom" class="block text-sm font-medium text-gray-700 mb-1">{{ fields.nom }}</label>
+                    <input type="text" id="nom" name="nom" required minlength="3" maxlength="255"
+                           class="input-field" placeholder="Nom de l'evenement ">
+                    <span class="text-red-600 text-sm mt-1 hidden" id="error-nom">Veuillez indiquer le nom.</span>
+                </div>
+
+                <div>
+                    <label for="type" class="block text-sm font-medium text-gray-700 mb-1">{{ fields.type }}</label>
+                    <select id="type" name="type" required class="input-field">
+                        <option value="">-- Sélectionnez un type --</option>
+                        {% for type in eventTypes %}
+                            <option value="{{ type.idType }}">{{ type.nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <span class="text-red-600 text-sm mt-1 hidden" id="error-type">Veuillez sélectionner un type.</span>
+                </div>
+
+                <div>
+                    <label for="date" class="block text-sm font-medium text-gray-700 mb-1">{{ fields.date }}</label>
+                    <input type="date" id="date" name="date" required min="{{ 'now'|date('Y-m-d') }}" class="input-field">
+                    <span class="text-red-600 text-sm mt-1 hidden" id="error-date">Veuillez choisir une date valide.</span>
+                </div>
+
+                <div>
+                    <label for="heure" class="block text-sm font-medium text-gray-700 mb-1">{{ fields.heure }}</label>
+                    <input type="time" id="heure" name="heure" required class="input-field">
+                    <span class="text-red-600 text-sm mt-1 hidden" id="error-heure">Veuillez spécifier l'heure.</span>
+                </div>
+
+                <div>
+                    <label for="lieu" class="block text-sm font-medium text-gray-700 mb-1">{{ fields.lieu }}</label>
+                    <input type="text" id="lieu" name="lieu" required minlength="2" maxlength="255"
+                           class="input-field" placeholder="lieu">
+                    <span class="text-red-600 text-sm mt-1 hidden" id="error-lieu">Veuillez indiquer le lieu.</span>
+                </div>
+            </div>
+
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description (optionnelle)</label>
+                <textarea id="description" name="description" rows="4" maxlength="1000"
+                          class="input-field"
+                          placeholder="Desc"></textarea>
+            </div>
+
+            <!-- reCAPTCHA v2 -->
+            <div class="flex justify-center">
+                <div class="g-recaptcha" data-sitekey="6Lei2RsrAAAAAOcRcbJ2yMeb0IMssTjZKkZ6AOHE"></div>
+            </div>
+
+            <div class="flex justify-end">
+                <button type="submit"
+                        class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 text-sm font-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Créer l'événement
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.input-field {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-primary focus:border-primary;
+}
+.input-field.invalid {
+    @apply border-red-500 bg-red-100;
+}
+</style>
+
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
+<script>
+document.getElementById('eventForm').addEventListener('submit', function (e) {
+    let valid = true;
+    const fields = [
+        { id: 'nom', message: 'Veuillez indiquer le nom.' },
+        { id: 'type', message: 'Veuillez sélectionner un type.' },
+        { id: 'date', message: 'Veuillez choisir une date valide.' },
+        { id: 'heure', message: 'Veuillez spécifier l\'heure.' },
+        { id: 'lieu', message: 'Veuillez indiquer le lieu.' }
+    ];
+
+    fields.forEach(field => {
+        const input = document.getElementById(field.id);
+        const error = document.getElementById('error-' + field.id);
+
+        if (!input.checkValidity()) {
+            input.classList.add('invalid');
+            error.classList.remove('hidden');
+            valid = false;
+        } else {
+            input.classList.remove('invalid');
+            error.classList.add('hidden');
+        }
+    });
+
+    // Vérifier que le reCAPTCHA est coché
+    if (grecaptcha.getResponse() === "") {
+        alert("Veuillez valider le reCAPTCHA.");
+        valid = false;
+    }
+
+    if (!valid) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}
