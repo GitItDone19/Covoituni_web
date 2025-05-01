@@ -20,7 +20,7 @@ class ReclamationController extends AbstractController
     private $doctrine;
     private $pdf;
 
-    public function __construct(ManagerRegistry $doctrine, Pdf $pdf)
+    public function __construct(ManagerRegistry $doctrine, Pdf $pdf = null)
     {
         $this->doctrine = $doctrine;
         $this->pdf = $pdf;
@@ -137,22 +137,22 @@ class ReclamationController extends AbstractController
     public function generatePdf(Reclamation $reclamation): Response
     {
         // Vérifier que l'utilisateur est bien le propriétaire de la réclamation
-        if ($reclamation->getUser() !== $this->getUser() && !$this->isGranted('ROLE_ADMIN')) {
-            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à accéder à cette réclamation');
+        if (!$this->isGranted('ROLE_ADMIN') && $reclamation->getUser() !== $this->getUser()) {
+            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à générer ce PDF');
         }
-        
-        // Générer le contenu HTML
+
+        // Si KnpSnappy n'est pas disponible, renvoyer une erreur
+        if ($this->pdf === null) {
+            throw new \Exception('Le service PDF n\'est pas disponible. Veuillez installer KnpSnappyBundle.');
+        }
+
         $html = $this->renderView('passager/reclamation/pdf.html.twig', [
             'reclamation' => $reclamation
         ]);
-        
-        // Définir le nom du fichier
-        $filename = 'reclamation-'.$reclamation->getId().'.pdf';
-        
-        // Retourner la réponse PDF
+
         return new PdfResponse(
             $this->pdf->getOutputFromHtml($html),
-            $filename
+            'reclamation-' . $reclamation->getId() . '.pdf'
         );
     }
 } 

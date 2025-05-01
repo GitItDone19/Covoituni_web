@@ -37,4 +37,37 @@ class ReclamationRepository extends ServiceEntityRepository
                  ->getQuery()
                  ->getSingleScalarResult();
     }
+
+    /**
+     * Get monthly statistics for reclamations
+     * 
+     * @return array Monthly reclamation counts
+     */
+    public function getMonthlyStats(): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+        $currentYear = date('Y');
+        
+        $sql = "
+            SELECT 
+                MONTH(date) as month,
+                COUNT(id) as count
+            FROM reclamation
+            WHERE YEAR(date) = :year
+            GROUP BY MONTH(date)
+            ORDER BY month ASC
+        ";
+        
+        $result = $conn->executeQuery($sql, ['year' => $currentYear])->fetchAllAssociative();
+        
+        // Initialize all months with 0
+        $monthlyData = array_fill(1, 12, 0);
+        
+        // Fill in actual data where available
+        foreach ($result as $row) {
+            $monthlyData[(int)$row['month']] = (int)$row['count'];
+        }
+        
+        return $monthlyData;
+    }
 } 

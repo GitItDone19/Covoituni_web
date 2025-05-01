@@ -160,6 +160,9 @@
             {% block body %}{% endblock %}
         </main>
 
+        <!-- CKEditor 5 -->
+        <script src="https://cdn.ckeditor.com/ckeditor5/38.0.1/classic/ckeditor.js"></script>
+        
         {# Modern Footer without the green line - with small margins #}
         <footer class="relative mt-12 pt-16 pb-8 overflow-hidden">
             {# Background elements #}
@@ -289,6 +292,10 @@
                 }
             });
         </script>
+        
+        {# CKEditor 5 CDN - Classic build #}
+        <script src="{{ asset('js/ckeditor-setup.js') }}"></script>
+        
         {% block javascripts %}{% endblock %}
     </body>
 </html>

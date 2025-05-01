@@ -22,14 +22,14 @@
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                     <div class="flex items-center">
                         <div class="relative">
-                            <input type="text" id="searchInput" placeholder="Rechercher..." class="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+                            <input type="text" placeholder="Rechercher..." class="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </div>
                     </div>
                     <div class="flex gap-2">
-                        <select id="sortSelect" class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+                        <select class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
                             <option value="">Trier par</option>
                             <option value="recent">Plus récents</option>
                             <option value="ancien">Plus anciens</option>
@@ -52,14 +52,9 @@
                         </a>
                     </div>
                 {% else %}
-                    <div id="trajetsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {% for trajet in trajets %}
-                            <div class="trajet-card bg-white rounded-xl shadow-md overflow-hidden" 
-                                 data-titre="{{ trajet.titre|default(trajet.departurePoint ~ ' → ' ~ trajet.arrivalPoint) }}"
-                                 data-depart="{{ trajet.getDeparturePoint() }}"
-                                 data-arrivee="{{ trajet.getArrivalPoint() }}"
-                                 data-prix="{{ trajet.price }}"
-                                 data-date="{{ trajet.createdAt|date('Ymd') }}">
+                            <div class="bg-white rounded-xl shadow-md overflow-hidden">
                                 <div class="p-6">
                                     <div class="flex justify-between items-start">
                                         <div>
@@ -89,24 +84,18 @@
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            <span class="text-gray-700 font-medium">{{ trajet.price }} DT</span>
+                                            <span class="text-gray-700 font-medium">{{ trajet.price }}€</span>
                                         </div>
                                     </div>
                                     
                                     <div class="mt-4 flex justify-end gap-2">
-                                        <a href="{{ path('app_map_trajet', {'id': trajet.id}) }}" class="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-800 text-xs font-medium rounded-lg hover:bg-blue-200 transition-colors duration-300">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                                            </svg>
-                                            Carte
-                                        </a>
-                                        <a href="{{ path('app_conducteur_modifier_trajet', {'id': trajet.id}) }}" class="inline-flex items-center px-3 py-1.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-lg hover:bg-yellow-200 transition-colors duration-300">
+                                        <a href="#" class="inline-flex items-center px-3 py-1.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-lg hover:bg-yellow-200 transition-colors duration-300">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                             </svg>
                                             Modifier
                                         </a>
-                                        <a href="{{ path('app_conducteur_supprimer_trajet', {'id': trajet.id}) }}" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce trajet?')" class="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-800 text-xs font-medium rounded-lg hover:bg-red-200 transition-colors duration-300">
+                                        <a href="#" class="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-800 text-xs font-medium rounded-lg hover:bg-red-200 transition-colors duration-300">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                             </svg>
@@ -116,13 +105,6 @@
                                 </div>
                             </div>
                         {% endfor %}
-                    </div>
-                    <div id="noResultsMessage" class="hidden bg-gray-50 rounded-xl p-8 text-center mt-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <h3 class="mt-4 text-xl font-medium text-gray-900">Aucun trajet trouvé</h3>
-                        <p class="mt-2 text-gray-600">Aucun trajet ne correspond à votre recherche.</p>
                     </div>
                 {% endif %}
                 
@@ -154,78 +136,4 @@
             </div>
         </div>
     </div>
-{% endblock %}
-
-{% block javascripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
-    const sortSelect = document.getElementById('sortSelect');
-    const trajetCards = document.querySelectorAll('.trajet-card');
-    const trajetsContainer = document.getElementById('trajetsContainer');
-    const noResultsMessage = document.getElementById('noResultsMessage');
-    
-    // Search functionality
-    function filterTrajets() {
-        const searchValue = searchInput.value.toLowerCase();
-        let visibleCount = 0;
-        
-        trajetCards.forEach(card => {
-            const titre = card.dataset.titre.toLowerCase();
-            const depart = card.dataset.depart.toLowerCase();
-            const arrivee = card.dataset.arrivee.toLowerCase();
-            
-            // Search by title, departure or arrival
-            if (
-                titre.includes(searchValue) || 
-                depart.includes(searchValue) || 
-                arrivee.includes(searchValue)
-            ) {
-                card.classList.remove('hidden');
-                visibleCount++;
-            } else {
-                card.classList.add('hidden');
-            }
-        });
-        
-        // Show or hide no results message
-        if (visibleCount === 0) {
-            noResultsMessage.classList.remove('hidden');
-        } else {
-            noResultsMessage.classList.add('hidden');
-        }
-    }
-    
-    // Sorting functionality
-    function sortTrajets() {
-        const sortValue = sortSelect.value;
-        let cardsArray = Array.from(trajetCards);
-        
-        // Sort based on selected value
-        if (sortValue === 'recent') {
-            cardsArray.sort((a, b) => b.dataset.date - a.dataset.date);
-        } else if (sortValue === 'ancien') {
-            cardsArray.sort((a, b) => a.dataset.date - b.dataset.date);
-        } else if (sortValue === 'prix-asc') {
-            cardsArray.sort((a, b) => parseFloat(a.dataset.prix) - parseFloat(b.dataset.prix));
-        } else if (sortValue === 'prix-desc') {
-            cardsArray.sort((a, b) => parseFloat(b.dataset.prix) - parseFloat(a.dataset.prix));
-        }
-        
-        // Reorder DOM elements
-        cardsArray.forEach(card => {
-            trajetsContainer.appendChild(card);
-        });
-    }
-    
-    // Add event listeners
-    if (searchInput) {
-        searchInput.addEventListener('input', filterTrajets);
-    }
-    
-    if (sortSelect) {
-        sortSelect.addEventListener('change', sortTrajets);
-    }
-});
-</script>
 {% endblock %} 

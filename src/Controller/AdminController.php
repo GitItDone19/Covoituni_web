@@ -39,6 +39,10 @@ class AdminController extends AbstractController
         $categoriesWithCars = $categorieRepository->findWithCars();
         $recentCategories = $categorieRepository->findRecent(5);
         
+        // Get monthly statistics
+        $reclamationsMonthlyData = $reclamationRepository->getMonthlyStats();
+        $avisMonthlyData = $avisRepository->getMonthlyStats();
+        
         // Comprehensive statistics for the dashboard
         $stats = [
             // User statistics
@@ -84,6 +88,7 @@ class AdminController extends AbstractController
                     $avisRepository->countByRating(4),
                     $avisRepository->countByRating(5),
                 ],
+                'monthly' => $avisMonthlyData,
             ],
             
             // Reclamation statistics
@@ -270,5 +275,13 @@ class AdminController extends AbstractController
         }
         
         return $alerts;
+    }
+
+    #[Route('/ckeditor-demo', name: 'app_admin_ckeditor_demo')]
+    public function ckeditorDemo(): Response
+    {
+        return $this->render('admin/ckeditor_demo.html.twig', [
+            'page_title' => 'Démo CKEditor',
+        ]);
     }
 } 

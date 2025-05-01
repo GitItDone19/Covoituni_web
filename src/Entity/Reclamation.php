@@ -22,16 +22,16 @@ class Reclamation
     #[Assert\Length(
         min: 5,
         max: 255,
-        minMessage: "Le sujet doit contenir au moins {{ limit }} caractères",
-        maxMessage: "Le sujet ne peut pas dépasser {{ limit }} caractères"
+        minMessage: "Ce texte est trop court. Il doit contenir 5 caractères ou plus.",
+        maxMessage: "Ce texte est trop long. Il doit contenir 255 caractères ou moins."
     )]
     private ?string $subject = null;
 
     #[ORM\Column(type: Types::TEXT)]
     #[Assert\NotBlank(message: "La description est obligatoire")]
     #[Assert\Length(
-        min: 10,
-        minMessage: "La description doit contenir au moins {{ limit }} caractères",
+        min: 5,
+        minMessage: "Ce texte est trop court. Il doit contenir 5 caractères ou plus."
     )]
     private ?string $description = null;
 

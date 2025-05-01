@@ -115,9 +115,9 @@
         </div>
         
         <!-- Reclamation cards with enhanced design and animations -->
-        {% if reclamations|length > 0 %}
+        {% if pagination.items|length > 0 %}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                {% for reclamation in reclamations %}
+                {% for reclamation in pagination %}
                     <div class="bg-white rounded-xl shadow-lg p-6 transition-all duration-500 hover:shadow-xl border border-gray-100 transform hover:-translate-y-1 animate-fade-in-up" style="animation-delay: {{ loop.index0 * 0.1 }}s">
                         <div class="flex justify-between items-start mb-4">
                             <div class="flex items-center">
@@ -136,12 +136,33 @@
                                 </div>
                             </div>
                             
-                            <div class="flex items-center">
-                                <span class="inline-block w-2 h-2 rounded-full {{ reclamation.status == 'pending' ? 'bg-yellow-500' : (reclamation.status == 'in_progress' ? 'bg-blue-500' : (reclamation.status == 'resolved' ? 'bg-green-500' : 'bg-red-500')) }} mr-2"></span>
-                                <span class="text-sm font-medium {{ reclamation.status == 'pending' ? 'text-yellow-700' : (reclamation.status == 'in_progress' ? 'text-blue-700' : (reclamation.status == 'resolved' ? 'text-green-700' : 'text-red-700')) }}">
-                                    {{ reclamation.status == 'pending' ? 'En attente' : (reclamation.status == 'in_progress' ? 'En cours' : (reclamation.status == 'resolved' ? 'Résolu' : 'Rejeté')) }}
-                                </span>
-                            </div>
+                            {% set statusClasses = {
+                                'pending': 'bg-gradient-to-r from-yellow-400 to-amber-500 animate-pulse',
+                                'in_progress': 'bg-gradient-to-r from-blue-400 to-indigo-500',
+                                'resolved': 'bg-gradient-to-r from-green-400 to-teal-500',
+                                'rejected': 'bg-gradient-to-r from-red-400 to-pink-500'
+                            } %}
+                            
+                            {% set statusLabels = {
+                                'pending': 'En attente',
+                                'in_progress': 'En cours',
+                                'resolved': 'Résolu',
+                                'rejected': 'Rejeté'
+                            } %}
+                            
+                            {% set statusIcons = {
+                                'pending': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />',
+                                'in_progress': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />',
+                                'resolved': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />',
+                                'rejected': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />'
+                            } %}
+                            
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium {{ statusClasses[reclamation.status] }} text-white shadow-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    {{ statusIcons[reclamation.status]|raw }}
+                                </svg>
+                                {{ statusLabels[reclamation.status] }}
+                            </span>
                         </div>
                         
                         <div class="mb-5">
@@ -210,6 +231,13 @@
                         </div>
                     </div>
                 {% endfor %}
+            </div>
+            
+            <!-- Pagination navigation -->
+            <div class="flex justify-center mt-8">
+                <div class="bg-white shadow-md rounded-lg p-4">
+                    {{ knp_pagination_render(pagination, 'pagination/custom_pagination.html.twig') }}
+                </div>
             </div>
         {% else %}
             <!-- Empty state with animation -->

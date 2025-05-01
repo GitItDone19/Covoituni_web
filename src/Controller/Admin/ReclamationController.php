@@ -31,23 +31,39 @@ class ReclamationController extends AbstractController
     }
     
     #[Route('/', name: 'app_admin_reclamation_index', methods: ['GET'])]
-    public function index(Request $request, ReclamationRepository $reclamationRepository): Response
+    public function index(Request $request, ReclamationRepository $reclamationRepository, PaginatorInterface $paginator): Response
     {
         // Make sure only users with ROLE_ADMIN can access this page
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
         
         $filter = $request->query->get('filter');
+        $search = $request->query->get('search');
         
+        // Create query based on filter
+        $queryBuilder = $reclamationRepository->createQueryBuilder('r')
+            ->orderBy('r.date', 'DESC');
+            
         // Filter reclamations based on the filter parameter
         if ($filter && in_array($filter, ['pending', 'in_progress', 'resolved', 'rejected'])) {
-            $reclamations = $reclamationRepository->findBy(['status' => $filter], ['date' => 'DESC']);
-        } else {
-            // Get all reclamations, ordered by date (newest first)
-            $reclamations = $reclamationRepository->findBy([], ['date' => 'DESC']);
+            $queryBuilder->andWhere('r.status = :status')
+                ->setParameter('status', $filter);
         }
         
+        // Filter by search term if provided
+        if ($search) {
+            $queryBuilder->andWhere('r.subject LIKE :search OR r.description LIKE :search')
+                ->setParameter('search', '%' . $search . '%');
+        }
+        
+        // Paginate the results
+        $pagination = $paginator->paginate(
+            $queryBuilder, // Query
+            $request->query->getInt('page', 1), // Page number
+            5 // Items per page
+        );
+        
         return $this->render('admin/reclamation/index.html.twig', [
-            'reclamations' => $reclamations,
+            'pagination' => $pagination,
             'user' => $this->getUser(),
         ]);
     }
@@ -285,23 +301,38 @@ class ReclamationController extends AbstractController
         // Make sure only users with ROLE_ADMIN can access this page
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
         
-        // Générer le contenu HTML
-        $html = $this->renderView('passager/reclamation/pdf.html.twig', [
-            'reclamation' => $reclamation
-        ]);
+        // Get all reclamations
+        $reclamations = $reclamationRepository->findAll();
         
-        // Définir le nom du fichier
-        $filename = 'reclamation-'.$reclamation->getId().'.pdf';
+        // Create CSV content
+        $csvContent = "ID;Sujet;Description;Date;Statut;Utilisateur;Email\n";
         
-        // Retourner la réponse PDF
-        return new PdfResponse(
-            $this->pdf->getOutputFromHtml($html),
-            $filename
-        );
+        foreach ($reclamations as $reclamation) {
+            $csvContent .= sprintf(
+                "%s;%s;%s;%s;%s;%s;%s\n",
+                $reclamation->getId(),
+                str_replace(';', ',', $reclamation->getSubject()),
+                str_replace(';', ',', substr($reclamation->getDescription(), 0, 100)) . '...',
+                $reclamation->getDate()->format('d/m/Y H:i'),
+                $reclamation->getStatus(),
+                $reclamation->getUser() ? $reclamation->getUser()->getNom() . ' ' . $reclamation->getUser()->getPrenom() : 'N/A',
+                $reclamation->getUser() ? $reclamation->getUser()->getEmail() : 'N/A'
+            );
+        }
+        
+        // Create response with CSV content
+        $response = new Response($csvContent);
+        
+        // Set headers
+        $filename = 'reclamations_export_' . date('Y-m-d') . '.csv';
+        $response->headers->set('Content-Type', 'text/csv; charset=utf-8');
+        $response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        
+        return $response;
     }
 
     /**
-     * Export all reclamations to Excel
+     * Export reclamations to Excel format
      */
     #[Route('/export/excel', name: 'app_admin_reclamation_export_excel', methods: ['GET'])]
     public function exportExcel(ReclamationRepository $reclamationRepository): Response
@@ -309,70 +340,55 @@ class ReclamationController extends AbstractController
         // Make sure only users with ROLE_ADMIN can access this page
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
         
-        // Create new Spreadsheet object
-        $spreadsheet = new Spreadsheet();
+        // Get all reclamations
+        $reclamations = $reclamationRepository->findAll();
+        
+        // Create a spreadsheet
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
         // Set headers
         $sheet->setCellValue('A1', 'ID');
-        $sheet->setCellValue('B1', 'Date');
-        $sheet->setCellValue('C1', 'Sujet');
-        $sheet->setCellValue('D1', 'Description');
+        $sheet->setCellValue('B1', 'Sujet');
+        $sheet->setCellValue('C1', 'Description');
+        $sheet->setCellValue('D1', 'Date');
         $sheet->setCellValue('E1', 'Statut');
         $sheet->setCellValue('F1', 'Utilisateur');
-        $sheet->setCellValue('G1', 'Réponses');
+        $sheet->setCellValue('G1', 'Email');
         
-        // Style the header
+        // Style the header row
         $sheet->getStyle('A1:G1')->getFont()->setBold(true);
-        
-        // Get all reclamations
-        $reclamations = $reclamationRepository->findBy([], ['date' => 'DESC']);
-        
+        $sheet->getStyle('A1:G1')->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('DDDDDD');
+            
         // Add data
         $row = 2;
         foreach ($reclamations as $reclamation) {
             $sheet->setCellValue('A' . $row, $reclamation->getId());
-            $sheet->setCellValue('B' . $row, $reclamation->getDate()->format('d/m/Y H:i'));
-            $sheet->setCellValue('C' . $row, $reclamation->getSubject());
-            $sheet->setCellValue('D' . $row, $reclamation->getDescription());
+            $sheet->setCellValue('B' . $row, $reclamation->getSubject());
+            $sheet->setCellValue('C' . $row, substr($reclamation->getDescription(), 0, 100) . '...');
+            $sheet->setCellValue('D' . $row, $reclamation->getDate()->format('d/m/Y H:i'));
             $sheet->setCellValue('E' . $row, $reclamation->getStatus());
-            $sheet->setCellValue('F' . $row, $reclamation->getUser()->getEmail());
-            
-            // Get responses
-            $responses = [];
-            foreach ($reclamation->getReponses() as $reponse) {
-                $responses[] = sprintf(
-                    "[%s] %s: %s",
-                    $reponse->getDate()->format('d/m/Y H:i'),
-                    $reponse->getAdminUsername(),
-                    $reponse->getContent()
-                );
-            }
-            $sheet->setCellValue('G' . $row, implode("\n", $responses));
-            
+            $sheet->setCellValue('F' . $row, $reclamation->getUser() ? $reclamation->getUser()->getNom() . ' ' . $reclamation->getUser()->getPrenom() : 'N/A');
+            $sheet->setCellValue('G' . $row, $reclamation->getUser() ? $reclamation->getUser()->getEmail() : 'N/A');
             $row++;
         }
         
-        // Auto-size columns
+        // Auto size columns
         foreach (range('A', 'G') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
         
-        // Create the Excel file
-        $writer = new Xlsx($spreadsheet);
+        // Create Excel file
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $filename = 'reclamations_export_' . date('Y-m-d') . '.xlsx';
         
-        // Create the response
-        $response = new StreamedResponse(
-            function () use ($writer) {
-                $writer->save('php://output');
-            }
-        );
+        // Create a temporary file
+        $tempFile = tempnam(sys_get_temp_dir(), 'reclamations');
+        $writer->save($tempFile);
         
-        // Set headers
-        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        $response->headers->set('Content-Disposition', 'attachment;filename="reclamations.xlsx"');
-        $response->headers->set('Cache-Control', 'max-age=0');
-        
-        return $response;
+        // Return the file as a response
+        return $this->file($tempFile, $filename, ResponseHeaderBag::DISPOSITION_ATTACHMENT);
     }
 } 
