@@ -82,6 +82,17 @@
                        Rejetées
                    </span>
                 </a>
+                
+                <!-- Export Excel Button -->
+                <a href="{{ path('app_admin_reclamation_export_excel') }}" 
+                   class="px-5 py-2.5 rounded-lg font-medium text-sm transform transition-all duration-300 hover:scale-105 shadow-sm bg-green-600 text-white hover:bg-green-700">
+                   <span class="flex items-center">
+                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                       </svg>
+                       Exporter Excel
+                   </span>
+                </a>
             </div>
             
             <!-- Enhanced search form -->
@@ -125,33 +136,12 @@
                                 </div>
                             </div>
                             
-                            {% set statusClasses = {
-                                'pending': 'bg-gradient-to-r from-yellow-400 to-amber-500 animate-pulse',
-                                'in_progress': 'bg-gradient-to-r from-blue-400 to-indigo-500',
-                                'resolved': 'bg-gradient-to-r from-green-400 to-teal-500',
-                                'rejected': 'bg-gradient-to-r from-red-400 to-pink-500'
-                            } %}
-                            
-                            {% set statusLabels = {
-                                'pending': 'En attente',
-                                'in_progress': 'En cours',
-                                'resolved': 'Résolu',
-                                'rejected': 'Rejeté'
-                            } %}
-                            
-                            {% set statusIcons = {
-                                'pending': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />',
-                                'in_progress': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />',
-                                'resolved': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />',
-                                'rejected': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />'
-                            } %}
-                            
-                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium {{ statusClasses[reclamation.state] }} text-white shadow-sm">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    {{ statusIcons[reclamation.state]|raw }}
-                                </svg>
-                                {{ statusLabels[reclamation.state] }}
-                            </span>
+                            <div class="flex items-center">
+                                <span class="inline-block w-2 h-2 rounded-full {{ reclamation.status == 'pending' ? 'bg-yellow-500' : (reclamation.status == 'in_progress' ? 'bg-blue-500' : (reclamation.status == 'resolved' ? 'bg-green-500' : 'bg-red-500')) }} mr-2"></span>
+                                <span class="text-sm font-medium {{ reclamation.status == 'pending' ? 'text-yellow-700' : (reclamation.status == 'in_progress' ? 'text-blue-700' : (reclamation.status == 'resolved' ? 'text-green-700' : 'text-red-700')) }}">
+                                    {{ reclamation.status == 'pending' ? 'En attente' : (reclamation.status == 'in_progress' ? 'En cours' : (reclamation.status == 'resolved' ? 'Résolu' : 'Rejeté')) }}
+                                </span>
+                            </div>
                         </div>
                         
                         <div class="mb-5">
@@ -194,7 +184,7 @@
                                 </span>
                             </a>
                             
-                            {% if reclamation.reponses is empty or reclamation.state == 'in_progress' %}
+                            {% if reclamation.reponses is empty or reclamation.status == 'in_progress' %}
                                 <a href="{{ path('app_admin_reclamation_reply', {'id': reclamation.id}) }}" 
                                    class="text-center text-sm font-medium text-orange-600 hover:text-white bg-orange-50 hover:bg-orange-600 transition-colors duration-300 py-2.5 px-4 rounded-lg shadow-sm hover:shadow flex-1 transform hover:scale-105">
                                     <span class="flex items-center justify-center">

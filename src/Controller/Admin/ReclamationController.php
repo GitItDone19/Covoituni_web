@@ -13,11 +13,23 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Knp\Bundle\SnappyBundle\Snappy\Response\PdfResponse;
+use Knp\Snappy\Pdf;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 // Ne pas mettre de name ici pour éviter les conflits
 #[Route('/admin/reclamation')]
 class ReclamationController extends AbstractController
 {
+    private $pdf;
+    
+    public function __construct(Pdf $pdf)
+    {
+        $this->pdf = $pdf;
+    }
+    
     #[Route('/', name: 'app_admin_reclamation_index', methods: ['GET'])]
     public function index(Request $request, ReclamationRepository $reclamationRepository): Response
     {
@@ -70,7 +82,7 @@ class ReclamationController extends AbstractController
             // Update the reclamation status if needed
             $newStatus = $request->request->get('status');
             if ($newStatus && in_array($newStatus, ['pending', 'in_progress', 'resolved', 'rejected'])) {
-                $reclamation->setState($newStatus);
+                $reclamation->setStatus($newStatus);
             }
             
             // Save the response
@@ -118,7 +130,7 @@ class ReclamationController extends AbstractController
             return $this->redirectToRoute('app_admin_reclamation_show', ['id' => $reclamation->getId()]);
         }
         
-        $reclamation->setState($newStatus);
+        $reclamation->setStatus($newStatus);
         $entityManager->flush();
         
         $this->addFlash('success', 'Le statut de la réclamation a été modifié avec succès');
@@ -265,5 +277,102 @@ class ReclamationController extends AbstractController
         
         $this->addFlash('success', 'Le statut de la réclamation a été corrigé avec succès.');
         return $this->redirectToRoute('app_admin_reclamation_show', ['id' => $reclamation->getId()]);
+    }
+
+    #[Route('/{id}/pdf', name: 'app_admin_reclamation_pdf', methods: ['GET'])]
+    public function generatePdf(Reclamation $reclamation): Response
+    {
+        // Make sure only users with ROLE_ADMIN can access this page
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        
+        // Générer le contenu HTML
+        $html = $this->renderView('passager/reclamation/pdf.html.twig', [
+            'reclamation' => $reclamation
+        ]);
+        
+        // Définir le nom du fichier
+        $filename = 'reclamation-'.$reclamation->getId().'.pdf';
+        
+        // Retourner la réponse PDF
+        return new PdfResponse(
+            $this->pdf->getOutputFromHtml($html),
+            $filename
+        );
+    }
+
+    /**
+     * Export all reclamations to Excel
+     */
+    #[Route('/export/excel', name: 'app_admin_reclamation_export_excel', methods: ['GET'])]
+    public function exportExcel(ReclamationRepository $reclamationRepository): Response
+    {
+        // Make sure only users with ROLE_ADMIN can access this page
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        
+        // Create new Spreadsheet object
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Set headers
+        $sheet->setCellValue('A1', 'ID');
+        $sheet->setCellValue('B1', 'Date');
+        $sheet->setCellValue('C1', 'Sujet');
+        $sheet->setCellValue('D1', 'Description');
+        $sheet->setCellValue('E1', 'Statut');
+        $sheet->setCellValue('F1', 'Utilisateur');
+        $sheet->setCellValue('G1', 'Réponses');
+        
+        // Style the header
+        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
+        
+        // Get all reclamations
+        $reclamations = $reclamationRepository->findBy([], ['date' => 'DESC']);
+        
+        // Add data
+        $row = 2;
+        foreach ($reclamations as $reclamation) {
+            $sheet->setCellValue('A' . $row, $reclamation->getId());
+            $sheet->setCellValue('B' . $row, $reclamation->getDate()->format('d/m/Y H:i'));
+            $sheet->setCellValue('C' . $row, $reclamation->getSubject());
+            $sheet->setCellValue('D' . $row, $reclamation->getDescription());
+            $sheet->setCellValue('E' . $row, $reclamation->getStatus());
+            $sheet->setCellValue('F' . $row, $reclamation->getUser()->getEmail());
+            
+            // Get responses
+            $responses = [];
+            foreach ($reclamation->getReponses() as $reponse) {
+                $responses[] = sprintf(
+                    "[%s] %s: %s",
+                    $reponse->getDate()->format('d/m/Y H:i'),
+                    $reponse->getAdminUsername(),
+                    $reponse->getContent()
+                );
+            }
+            $sheet->setCellValue('G' . $row, implode("\n", $responses));
+            
+            $row++;
+        }
+        
+        // Auto-size columns
+        foreach (range('A', 'G') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+        
+        // Create the Excel file
+        $writer = new Xlsx($spreadsheet);
+        
+        // Create the response
+        $response = new StreamedResponse(
+            function () use ($writer) {
+                $writer->save('php://output');
+            }
+        );
+        
+        // Set headers
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->headers->set('Content-Disposition', 'attachment;filename="reclamations.xlsx"');
+        $response->headers->set('Cache-Control', 'max-age=0');
+        
+        return $response;
     }
 } 

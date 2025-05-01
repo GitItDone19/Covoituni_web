@@ -93,6 +93,10 @@ class AdminController extends AbstractController
                 'in_progress' => $reclamationRepository->countByStatus('in_progress'),
                 'resolved' => $reclamationRepository->countByStatus('resolved'),
                 'rejected' => $reclamationRepository->countByStatus('rejected'),
+                'total' => $reclamationRepository->countByStatus('pending') + 
+                          $reclamationRepository->countByStatus('in_progress') + 
+                          $reclamationRepository->countByStatus('resolved') + 
+                          $reclamationRepository->countByStatus('rejected'),
             ],
             
             // Recent users

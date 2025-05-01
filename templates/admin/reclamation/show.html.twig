@@ -65,43 +65,12 @@
             
             <!-- Status information with improved styling -->
             <div class="mt-6 flex flex-wrap items-center gap-4 p-4 bg-gray-50 rounded-xl shadow-sm border border-gray-100 animate-fade-in" style="animation-delay: 0.3s">
-                {% set statusClasses = {
-                    'pending': 'bg-gradient-to-r from-yellow-400 to-amber-500 animate-pulse',
-                    'in_progress': 'bg-gradient-to-r from-blue-400 to-indigo-500',
-                    'resolved': 'bg-gradient-to-r from-green-400 to-teal-500',
-                    'rejected': 'bg-gradient-to-r from-red-400 to-pink-500'
-                } %}
-                
-                {% set statusLabels = {
-                    'pending': 'En attente',
-                    'in_progress': 'En cours',
-                    'resolved': 'Résolu',
-                    'rejected': 'Rejeté'
-                } %}
-                
-                {% set statusIcons = {
-                    'pending': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />',
-                    'in_progress': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />',
-                    'resolved': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />',
-                    'rejected': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />'
-                } %}
-                
-                <form method="post" action="{{ path('app_admin_reclamation_change_status', {'id': reclamation.id}) }}" class="flex items-center">
-                    <label for="status" class="mr-2 text-sm font-medium text-gray-700">Statut:</label>
-                    <select id="status" name="status" class="text-sm border border-gray-300 rounded-lg py-2 px-3 focus:ring-primary focus:border-primary shadow-sm" onchange="this.form.submit()">
-                        <option value="pending" {% if reclamation.state == 'pending' %}selected{% endif %}>En attente</option>
-                        <option value="in_progress" {% if reclamation.state == 'in_progress' %}selected{% endif %}>En cours</option>
-                        <option value="resolved" {% if reclamation.state == 'resolved' %}selected{% endif %}>Résolu</option>
-                        <option value="rejected" {% if reclamation.state == 'rejected' %}selected{% endif %}>Rejeté</option>
-                    </select>
-                </form>
-                
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium {{ statusClasses[reclamation.state] }} text-white shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        {{ statusIcons[reclamation.state]|raw }}
-                    </svg>
-                    {{ statusLabels[reclamation.state] }}
-                </span>
+                <div class="flex items-center mb-4">
+                    <span class="text-sm font-medium text-gray-500 mr-2">Statut:</span>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium {{ reclamation.status == 'pending' ? 'bg-yellow-100 text-yellow-800' : (reclamation.status == 'in_progress' ? 'bg-blue-100 text-blue-800' : (reclamation.status == 'resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')) }}">
+                        {{ reclamation.status == 'pending' ? 'En attente' : (reclamation.status == 'in_progress' ? 'En cours' : (reclamation.status == 'resolved' ? 'Résolu' : 'Rejeté')) }}
+                    </span>
+                </div>
                 
                 <span class="text-gray-500 text-sm flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

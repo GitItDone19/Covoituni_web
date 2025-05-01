@@ -597,4 +597,56 @@ class UserService
     {
         return $this->mailer;
     }
+
+    /**
+     * Get filtered users for pagination with KnpPaginator
+     *
+     * @param string $searchTerm
+     * @param string $filter
+     * @return array
+     */
+    public function getFilteredUsers(string $searchTerm = '', string $filter = ''): array
+    {
+        $queryBuilder = $this->userRepository->createQueryBuilder('u')
+            ->leftJoin('u.role', 'r');
+
+        // Apply role filter if provided
+        if (!empty($filter)) {
+            $roleCode = strtoupper($filter);
+            if (in_array($roleCode, ['ADMIN', 'CONDUCTEUR', 'PASSAGER'])) {
+                $queryBuilder->andWhere('u.roleCode = :roleCode')
+                    ->setParameter('roleCode', $roleCode);
+            }
+        }
+
+        // Apply search term if provided
+        if (!empty($searchTerm)) {
+            $queryBuilder->andWhere('
+                u.nom LIKE :search OR
+                u.prenom LIKE :search OR
+                u.email LIKE :search OR
+                u.username LIKE :search OR
+                u.tel LIKE :search
+            ')
+            ->setParameter('search', '%' . $searchTerm . '%');
+        }
+
+        // Count total users for this query
+        $countQueryBuilder = clone $queryBuilder;
+        $totalUsers = $countQueryBuilder
+            ->select('COUNT(u.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        // Get user collection that will be paginated by KnpPaginator
+        $users = $queryBuilder
+            ->select('u, r')
+            ->orderBy('u.id', 'DESC')
+            ->getQuery();
+
+        return [
+            'users' => $users,
+            'total' => $totalUsers
+        ];
+    }
 } 

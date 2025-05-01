@@ -248,12 +248,17 @@
         <div class="text-xs uppercase text-white/50 font-semibold px-4 mb-2 mt-6">Support</div>
         <a href="{{ path('app_admin_reclamation_index') }}" class="sidebar-link flex items-center px-4 py-3 text-sm font-medium rounded-lg {% if app.request.get('_route') starts with 'app_admin_reclamation' %}active bg-white/10 text-white{% else %}text-white/70 hover:text-white{% endif %} transition-all duration-200">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
             </svg>
             Réclamations
-            {% if stats.reclamations.pending > 0 %}
-                <span class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{{ stats.reclamations.pending }}</span>
-            {% endif %}
+        </a>
+        
+        <div class="text-xs uppercase text-white/50 font-semibold px-4 mb-2 mt-6">Analytics</div>
+        <a href="{{ path('app_admin_statistics') }}" class="sidebar-link flex items-center px-4 py-3 text-sm font-medium rounded-lg {% if app.request.get('_route') starts with 'app_admin_statistics' %}active bg-white/10 text-white{% else %}text-white/70 hover:text-white{% endif %} transition-all duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Statistiques
         </a>
         
         <div class="text-xs uppercase text-white/50 font-semibold px-4 mb-2 mt-6">Config</div>
@@ -429,7 +434,7 @@
                             </svg>
                         </div>
                     </div>
-                    <div class="metric-value">{{ reclamations_count|default(stats.reclamations.active) }}</div>
+                    <div class="metric-value">{{ stats.reclamations.total|default(stats.reclamations.active + stats.reclamations.pending + stats.reclamations.in_progress + stats.reclamations.resolved + stats.reclamations.rejected) }}</div>
                     <div class="metric-label">Réclamations actives</div>
                     <div class="flex justify-between items-center mt-4 text-xs text-gray-500">
                         <div class="flex items-center">
@@ -569,7 +574,13 @@
                                             </svg>
                                         </div>
                                         <div class="flex-1 min-w-0">
-                                            <p class="text-sm font-medium text-gray-900 truncate">{{ ride.trajet.departurePoint }} → {{ ride.trajet.arrivalPoint }}</p>
+                                            <p class="text-sm font-medium text-gray-900 truncate">
+                                                {% if ride.trajet %}
+                                                    {{ ride.trajet.departurePoint }} → {{ ride.trajet.arrivalPoint }}
+                                                {% else %}
+                                                    Trajet indisponible
+                                                {% endif %}
+                                            </p>
                                             <p class="text-xs text-gray-500 truncate">{{ ride.departureDate|date('d/m/Y H:i') }}</p>
                                         </div>
                                         <div class="ml-2">

@@ -11,6 +11,7 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Knp\Component\Pager\PaginatorInterface;
 
 #[Route('/user')]
 class UserController extends AbstractController
@@ -239,51 +240,46 @@ class UserController extends AbstractController
     }
 
     #[Route('/admin/users', name: 'app_admin_users')]
-    public function listUsers(Request $request): Response
+    public function listUsers(Request $request, \Knp\Component\Pager\PaginatorInterface $paginator): Response
     {
         // Check if the user has admin rights
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
         $page = max(1, $request->query->getInt('page', 1));
-        $limit = $request->query->getInt('limit', 10);
+        $limit = $request->query->getInt('limit', 2); // Reduced to 2 records per page for testing
         $searchTerm = $request->query->get('search', '');
         $filter = $request->query->get('filter', '');
 
-        $result = [];
-        
-        // Handle filtering by role
-        if (!empty($filter)) {
-            $roleCode = strtoupper($filter);
-            if (in_array($roleCode, ['ADMIN', 'CONDUCTEUR', 'PASSAGER'])) {
-                $result = $this->userService->findUsersByRole($roleCode, $page, $limit);
+        try {
+            $usersData = $this->userService->getFilteredUsers($searchTerm, $filter);
+            
+            // Use KnpPaginator to paginate the results
+            $pagination = $paginator->paginate(
+                $usersData['users'], // Data to paginate
+                $page,               // Current page
+                $limit               // Items per page
+            );
+            
+            // Check ban status for each user
+            $bannedStatuses = [];
+            foreach ($pagination as $user) {
+                $bannedStatuses[$user->getId()] = $this->userBanService->isUserBanned($user);
             }
-        } 
-        // Handle search
-        else if (!empty($searchTerm)) {
-            $result = $this->userService->searchUsers($searchTerm, $page, $limit);
-        } 
-        // Default list
-        else {
-            $result = $this->userService->listUsers($page, $limit);
-        }
-        
-        // Check ban status for each user
-        $users = $result['users'];
-        $bannedStatuses = [];
-        
-        foreach ($users as $user) {
-            $bannedStatuses[$user->getId()] = $this->userBanService->isUserBanned($user);
-        }
 
-        return $this->render('user/list.html.twig', [
-            'users' => $users,
-            'totalUsers' => $result['totalUsers'],
-            'page' => $page,
-            'limit' => $limit,
-            'totalPages' => ceil($result['totalUsers'] / $limit),
-            'bannedStatuses' => $bannedStatuses,
-            'user' => $this->getUser()
-        ]);
+            return $this->render('user/list.html.twig', [
+                'pagination' => $pagination,
+                'total_users' => $usersData['total'],
+                'search' => $searchTerm,
+                'filter' => $filter,
+                'sort' => $request->query->get('sort', 'id'),
+                'direction' => $request->query->get('direction', 'asc'),
+                'bannedStatuses' => $bannedStatuses,
+                'user' => $this->getUser() // Include the current user for the template
+            ]);
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'An error occurred: ' . $e->getMessage());
+            return $this->redirectToRoute('app_admin_dashboard');
+        }
     }
 
     #[Route('/admin/users/{id}/delete', name: 'app_admin_user_delete', methods: ['POST'])]

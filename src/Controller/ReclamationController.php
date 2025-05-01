@@ -11,15 +11,19 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Doctrine\ORM\EntityManagerInterface;
+use Knp\Bundle\SnappyBundle\Snappy\Response\PdfResponse;
+use Knp\Snappy\Pdf;
 
 #[Route('/reclamation')]
 class ReclamationController extends AbstractController
 {
     private $doctrine;
+    private $pdf;
 
-    public function __construct(ManagerRegistry $doctrine)
+    public function __construct(ManagerRegistry $doctrine, Pdf $pdf)
     {
         $this->doctrine = $doctrine;
+        $this->pdf = $pdf;
     }
 
     #[Route('/', name: 'app_passager_reclamation_index')]
@@ -127,5 +131,28 @@ class ReclamationController extends AbstractController
         }
 
         return $this->redirectToRoute('app_passager_mes_reclamations');
+    }
+
+    #[Route('/{id}/pdf', name: 'app_passager_reclamation_pdf', methods: ['GET'])]
+    public function generatePdf(Reclamation $reclamation): Response
+    {
+        // Vérifier que l'utilisateur est bien le propriétaire de la réclamation
+        if ($reclamation->getUser() !== $this->getUser() && !$this->isGranted('ROLE_ADMIN')) {
+            throw $this->createAccessDeniedException('Vous n\'êtes pas autorisé à accéder à cette réclamation');
+        }
+        
+        // Générer le contenu HTML
+        $html = $this->renderView('passager/reclamation/pdf.html.twig', [
+            'reclamation' => $reclamation
+        ]);
+        
+        // Définir le nom du fichier
+        $filename = 'reclamation-'.$reclamation->getId().'.pdf';
+        
+        // Retourner la réponse PDF
+        return new PdfResponse(
+            $this->pdf->getOutputFromHtml($html),
+            $filename
+        );
     }
 } 
