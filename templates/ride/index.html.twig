@@ -43,7 +43,7 @@
                         
                         <div>
                             <label for="price" class="block text-sm font-medium mb-2">Max Price</label>
-                            <input type="number" id="price" name="price" class="form-input w-full rounded-xl" placeholder="€" value="{{ app.request.query.get('price') }}">
+                            <input type="number" id="price" name="price" class="form-input w-full rounded-xl" placeholder="DT" value="{{ app.request.query.get('price') }}">
                         </div>
                         
                         <button type="submit" class="btn btn-primary w-full py-3 rounded-xl font-medium transition-all">Apply Filters</button>
@@ -63,7 +63,7 @@
                             <div class="card p-6 hover:shadow-lg transition-all relative">
                                 <div class="flex justify-between items-start mb-4">
                                     <h3 class="font-semibold text-lg">{{ ride.titre }}</h3>
-                                    <span class="font-bold text-primary text-xl">{{ ride.trajet.price }}€</span>
+                                    <span class="font-bold text-primary text-xl">{{ ride.trajet.price }} DT</span>
                                 </div>
                                 
                                 <div class="space-y-3 text-sm mb-6">

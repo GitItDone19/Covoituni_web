@@ -56,7 +56,7 @@
                 </div>
                 
                 <div>
-                    <label for="prix" class="block text-sm font-medium text-gray-700 mb-1">Prix par passager (€)</label>
+                    <label for="prix" class="block text-sm font-medium text-gray-700 mb-1">Prix par passager (DT)</label>
                     <input type="number" id="prix" name="prix" required min="1" step="0.5"
                            class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-primary focus:border-primary transition-colors duration-300"
                            placeholder="15">
@@ -68,6 +68,7 @@
                 <textarea id="description" name="description" rows="4"
                           class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-primary focus:border-primary transition-colors duration-300"
                           placeholder="Ajoutez des détails sur votre trajet (points de rendez-vous, bagages autorisés, etc.)"></textarea>
+                <small class="text-gray-500">Veuillez éviter les mots inappropriés dans la description.</small>
             </div>
             
             <div>
@@ -131,7 +132,7 @@
                             <div class="mt-4 flex justify-between">
                                 <div>
                                     <p class="text-sm font-medium text-gray-900">Prix</p>
-                                    <p class="text-lg font-bold text-primary">{{ annonce.prix }} €</p>
+                                    <p class="text-lg font-bold text-primary">{{ annonce.prix }} DT</p>
                                 </div>
                                 <div class="text-right">
                                     <p class="text-sm font-medium text-gray-900">Places</p>
