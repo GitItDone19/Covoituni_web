@@ -1,0 +1,202 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Créer une nouvelle catégorie{% endblock %}
+
+{% block body %}
+    <div class="sm:ml-64">
+        <div class="p-4 sm:p-6 lg:p-8">
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-primary">Créer une nouvelle catégorie</h1>
+                <p class="text-gray-600 mt-2">Définissez une nouvelle catégorie de véhicule et ses caractéristiques</p>
+                <a href="{{ path('app_admin_category_index') }}" class="inline-flex items-center mt-4 px-4 py-2 bg-white text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Retour
+            </a>
+        </div>
+
+        {% for message in app.flashes('success') %}
+                <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-lg" role="alert">
+                <div class="flex">
+                    <div class="py-1">
+                        <svg class="h-6 w-6 text-green-500 mr-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-bold">Succès</p>
+                        <p>{{ message }}</p>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+
+        {% for message in app.flashes('error') %}
+                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg" role="alert">
+                <div class="flex">
+                    <div class="py-1">
+                        <svg class="h-6 w-6 text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-bold">Erreur</p>
+                        <p>{{ message }}</p>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+
+            <div class="bg-white rounded-lg shadow p-6 border border-gray-100">
+            {{ form_start(form, {'attr': {'class': 'space-y-6'}}) }}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                            {{ form_label(form.nom, 'Nom de la catégorie', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 mb-1'}}) }}
+                    <div class="mt-1">
+                        {{ form_widget(form.nom, {'attr': {'class': 'shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md', 'placeholder': 'Entrez le nom de la catégorie'}}) }}
+                    </div>
+                    {{ form_errors(form.nom, {'attr': {'class': 'text-red-500 text-sm mt-1'}}) }}
+                </div>
+
+                <div>
+                            {{ form_label(form.description, 'Description', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 mb-1'}}) }}
+                    <div class="mt-1">
+                        {{ form_widget(form.description, {'attr': {'class': 'shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md', 'rows': 4, 'placeholder': 'Entrez une description détaillée de la catégorie'}}) }}
+                    </div>
+                    {{ form_errors(form.description, {'attr': {'class': 'text-red-500 text-sm mt-1'}}) }}
+                        </div>
+                    </div>
+
+                    <div class="mt-8">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Caractéristiques du véhicule</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {# Confort Features #}
+                            <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                                <h3 class="text-xl font-semibold text-primary mb-4">Confort</h3>
+                                <div class="space-y-3">
+                                    {% for feature in form.children %}
+                                        {% if feature.vars.name in ['ac', 'heated_seats', 'leather_seats', 'sunroof'] %}
+                                            <div class="flex items-center">
+                                                {{ form_widget(feature, {'attr': {'class': 'form-checkbox h-5 w-5 text-primary rounded border-gray-300'}}) }}
+                                                {{ form_label(feature, null, {'label_attr': {'class': 'ml-3 text-gray-700'}}) }}
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            {# Technologie Features #}
+                            <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                                <h3 class="text-xl font-semibold text-primary mb-4">Technologie</h3>
+                                <div class="space-y-3">
+                                    {% for feature in form.children %}
+                                        {% if feature.vars.name in ['bluetooth', 'aux', 'usb_port', 'gps'] %}
+                                            <div class="flex items-center">
+                                                {{ form_widget(feature, {'attr': {'class': 'form-checkbox h-5 w-5 text-primary rounded border-gray-300'}}) }}
+                                                {{ form_label(feature, null, {'label_attr': {'class': 'ml-3 text-gray-700'}}) }}
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            {# Sécurité Features #}
+                            <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                                <h3 class="text-xl font-semibold text-primary mb-4">Sécurité</h3>
+                                <div class="space-y-3">
+                                    {% for feature in form.children %}
+                                        {% if feature.vars.name in ['parking_sensors', 'rear_camera', 'lane_assist', 'cruise_control'] %}
+                                            <div class="flex items-center">
+                                                {{ form_widget(feature, {'attr': {'class': 'form-checkbox h-5 w-5 text-primary rounded border-gray-300'}}) }}
+                                                {{ form_label(feature, null, {'label_attr': {'class': 'ml-3 text-gray-700'}}) }}
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            {# Transmission Features #}
+                            <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                                <h3 class="text-xl font-semibold text-primary mb-4">Transmission</h3>
+                                <div class="space-y-3">
+                                    {% for feature in form.children %}
+                                        {% if feature.vars.name in ['automatic_transmission', 'manual_transmission'] %}
+                                            <div class="flex items-center">
+                                                {{ form_widget(feature, {'attr': {'class': 'form-checkbox h-5 w-5 text-primary rounded border-gray-300'}}) }}
+                                                {{ form_label(feature, null, {'label_attr': {'class': 'ml-3 text-gray-700'}}) }}
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            {# Autres Features #}
+                            <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                                <h3 class="text-xl font-semibold text-primary mb-4">Autres</h3>
+                                <div class="space-y-3">
+                                    {% for feature in form.children %}
+                                        {% if feature.vars.name in ['black_windows'] %}
+                                            <div class="flex items-center">
+                                                {{ form_widget(feature, {'attr': {'class': 'form-checkbox h-5 w-5 text-primary rounded border-gray-300'}}) }}
+                                                {{ form_label(feature, null, {'label_attr': {'class': 'ml-3 text-gray-700'}}) }}
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                </div>
+
+                    <div class="flex justify-end mt-6">
+                        <button type="button" onclick="window.location='{{ path('app_admin_category_index') }}'" class="px-4 py-2 mr-3 bg-white text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50">
+                        Annuler
+                        </button>
+                        <button type="submit" class="px-6 py-3 bg-primary text-white rounded-lg shadow hover:bg-primary-dark">
+                        Enregistrer
+                    </button>
+                </div>
+            {{ form_end(form) }}
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .feature-group {
+        background-color: #f8f9fa;
+        padding: 1.25rem;
+        border-radius: 0.75rem;
+        height: 100%;
+        border: 1px solid #e9ecef;
+        transition: all 0.2s ease-in-out;
+    }
+    
+    .feature-group:hover {
+        border-color: #198754;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .feature-group .form-check {
+        margin-bottom: 0.75rem;
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        transition: background-color 0.2s ease-in-out;
+    }
+    
+    .feature-group .form-check:hover {
+        background-color: #ffffff;
+    }
+    
+    .feature-group .form-check-input {
+        margin-right: 0.5rem;
+    }
+    
+    .feature-group .form-check-label {
+        color: #495057;
+        font-size: 0.95rem;
+    }
+</style>
+{% endblock %} 
