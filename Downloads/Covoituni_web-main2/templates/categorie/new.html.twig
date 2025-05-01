@@ -1,0 +1,85 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Create New Category{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .feature-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .feature-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+        
+        .feature-checkbox input[type="checkbox"] {
+            margin-right: 0.5rem;
+        }
+        
+        .feature-description {
+            font-size: 0.875rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="container mt-4">
+        <h1>Create New Category</h1>
+        
+        {{ form_start(form) }}
+            <div class="row">
+                <div class="col-md-6">
+                    {{ form_row(form.nom) }}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    {{ form_row(form.description) }}
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <h3>Category Features</h3>
+                <p class="text-muted">Select the features that define this category. Vehicles with matching features will be automatically assigned to this category.</p>
+                {{ form_row(form.features) }}
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">Create Category</button>
+                <a href="{{ path('categorie_list') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        {{ form_end(form) }}
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add feature descriptions to checkboxes
+            const checkboxes = document.querySelectorAll('.feature-checkboxes input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                const label = checkbox.nextElementSibling;
+                const description = label.getAttribute('data-description');
+                if (description) {
+                    const descriptionElement = document.createElement('div');
+                    descriptionElement.className = 'feature-description';
+                    descriptionElement.textContent = description;
+                    label.parentNode.appendChild(descriptionElement);
+                }
+            });
+        });
+    </script>
+{% endblock %} 

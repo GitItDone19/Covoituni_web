@@ -1,0 +1,104 @@
+{% macro stylesheets %}
+<style>
+    .category-card {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.25rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .feature-list {
+        list-style-type: none;
+        padding-left: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .feature-list li {
+        background-color: #e9ecef;
+        padding: 0.35rem 0.75rem;
+        border-radius: 16px;
+        font-size: 0.875rem;
+    }
+    
+    .feature-list li.mandatory {
+        background-color: #cff4fc;
+        border: 1px solid #9eeaf9;
+    }
+    
+    /* Feature selection styling */
+    .feature-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-top: 0.5rem;
+    }
+    
+    .feature-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+        transition: all 0.2s ease;
+    }
+    
+    .feature-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .feature-item.mandatory {
+        border-left: 4px solid #0dcaf0;
+    }
+    
+    .feature-item input[type="checkbox"] {
+        margin-right: 0.75rem;
+    }
+    
+    .feature-description {
+        color: #6c757d;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endmacro %}
+
+{% macro javascripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Enhance feature checkboxes with descriptions and styling
+        const featureItems = document.querySelectorAll('.feature-item');
+        
+        featureItems.forEach(item => {
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            const label = item.querySelector('label');
+            
+            if (label && label.dataset.description) {
+                const description = document.createElement('div');
+                description.className = 'feature-description';
+                description.textContent = label.dataset.description;
+                label.appendChild(description);
+            }
+            
+            if (label && label.dataset.mandatory === "1") {
+                item.classList.add('mandatory');
+            }
+            
+            // Toggle selected state for better UX
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+            
+            // Initialize selected state
+            if (checkbox.checked) {
+                item.classList.add('selected');
+            }
+        });
+    });
+</script>
+{% endmacro %} 

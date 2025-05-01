@@ -1,0 +1,85 @@
+{% extends 'base.html.twig' %}
+{% import 'car/form_styles.html.twig' as form_styles %}
+
+{{ form_styles.stylesheets }}
+{{ form_styles.javascripts }}
+
+{% block title %}Edit Car{% endblock %}
+
+{% block body %}
+    <div class="container my-4">
+        <h1 class="mb-4">Edit Car</h1>
+        
+        {% for type, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="alert alert-{{ type }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endfor %}
+        
+        <div class="category-card mb-4">
+            <h3>Current Category: {{ car.categorie.nom }}</h3>
+            <p>{{ car.categorie.description }}</p>
+            
+            {% if car.categorie.features|length > 0 %}
+                <h5 class="mt-3 mb-2">Category Features:</h5>
+                <ul class="feature-list">
+                    {% for feature in car.categorie.features %}
+                        <li{% if feature.isMandatory %} class="mandatory"{% endif %}>
+                            {{ feature.name }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <p class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Update the features available in your vehicle. The system will automatically re-assign the most appropriate category based on your selection.
+                </p>
+                
+                {{ form_start(form) }}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            {{ form_row(form.plaqueImatriculation) }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form_row(form.dateImatriculation) }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            {{ form_row(form.marque) }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form_row(form.modele) }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form_row(form.couleur) }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        {{ form_row(form.description) }}
+                    </div>
+                    
+                    <h3 class="mb-2 mt-4">Vehicle Features</h3>
+                    {{ form_row(form.features) }}
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ path('car_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to List
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Update Car
+                        </button>
+                    </div>
+                {{ form_end(form) }}
+            </div>
+        </div>
+    </div>
+{% endblock %} 

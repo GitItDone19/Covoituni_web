@@ -1,0 +1,210 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ajouter un véhicule{% endblock %}
+
+{% block body %}
+    <div class="container mt-4">
+        <h1 class="text-success mb-4">Ajouter un véhicule</h1>
+        <p class="text-muted">Enregistrez les informations de votre véhicule pour pouvoir proposer des trajets</p>
+        
+        <a href="{{ path('conducteur_dashboard') }}" class="btn btn-outline-secondary mb-4">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+
+        {% for type, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="alert alert-{{ type }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endfor %}
+
+        {{ form_start(form, {'attr': {'class': 'needs-validation', 'novalidate': 'novalidate'}}) }}
+            {# Hide the category field #}
+            {% do form.setRendered %}
+            
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Informations de base</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ form_row(form.plaqueImatriculation, {
+                                'label': 'Plaque d\'immatriculation *',
+                                'attr': {
+                                    'placeholder': 'Format: XX-123-XX ou XX123XX'
+                                }
+                            }) }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form_row(form.dateImatriculation, {
+                                'label': 'Date d\'immatriculation *'
+                            }) }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form_row(form.marque, {
+                                'label': 'Marque *',
+                                'attr': {
+                                    'placeholder': 'Sélectionnez une marque'
+                                }
+                            }) }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form_row(form.modele, {
+                                'label': 'Modèle *',
+                                'attr': {
+                                    'placeholder': 'Sélectionnez d\'abord une marque'
+                                }
+                            }) }}
+                        </div>
+                        <div class="col-12">
+                            {{ form_row(form.couleur, {
+                                'label': 'Couleur *',
+                                'attr': {
+                                    'placeholder': 'Noir, Blanc, Rouge, etc.'
+                                }
+                            }) }}
+                        </div>
+                        <div class="col-12">
+                            {{ form_row(form.description, {
+                                'label': 'Description (optionnelle)',
+                                'attr': {
+                                    'placeholder': 'Décrivez votre véhicule (options, particularités, etc.)',
+                                    'rows': 3
+                                }
+                            }) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Équipements et Options</h5>
+                    <div class="alert alert-info border-info d-flex align-items-center mb-4">
+                        <i class="fas fa-info-circle fa-lg me-3"></i>
+                        <div>
+                            <h6 class="alert-heading mb-1">Sélection automatique de la catégorie</h6>
+                            <p class="mb-0">
+                                Cochez les équipements présents dans votre véhicule. Le système déterminera automatiquement la catégorie la plus appropriée en fonction de vos sélections. Plus vous sélectionnez d'équipements, plus la catégorisation sera précise.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="feature-group">
+                                <h6 class="mb-3">Confort</h6>
+                                {{ form_row(form.ac, {'label': 'Climatisation'}) }}
+                                {{ form_row(form.heated_seats, {'label': 'Sièges chauffants'}) }}
+                                {{ form_row(form.leather_seats, {'label': 'Sièges en cuir'}) }}
+                                {{ form_row(form.sunroof, {'label': 'Toit ouvrant'}) }}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="feature-group">
+                                <h6 class="mb-3">Technologie</h6>
+                                {{ form_row(form.bluetooth, {'label': 'Bluetooth'}) }}
+                                {{ form_row(form.aux, {'label': 'Entrée AUX'}) }}
+                                {{ form_row(form.usb_port, {'label': 'Port USB'}) }}
+                                {{ form_row(form.gps, {'label': 'GPS'}) }}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="feature-group">
+                                <h6 class="mb-3">Sécurité et Conduite</h6>
+                                {{ form_row(form.parking_sensors, {'label': 'Capteurs de stationnement'}) }}
+                                {{ form_row(form.rear_camera, {'label': 'Caméra de recul'}) }}
+                                {{ form_row(form.lane_assist, {'label': 'Aide au maintien de voie'}) }}
+                                {{ form_row(form.cruise_control, {'label': 'Régulateur de vitesse'}) }}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="feature-group">
+                                <h6 class="mb-3">Transmission</h6>
+                                {{ form_row(form.automatic_transmission, {'label': 'Transmission automatique'}) }}
+                                {{ form_row(form.manual_transmission, {'label': 'Transmission manuelle'}) }}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="feature-group">
+                                <h6 class="mb-3">Autres</h6>
+                                {{ form_row(form.black_windows, {'label': 'Vitres teintées'}) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-4">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Enregistrer le véhicule
+                </button>
+            </div>
+        {{ form_end(form, {'render_rest': false}) }}
+    </div>
+
+    <style>
+        .feature-group {
+            background-color: #f8f9fa;
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+            height: 100%;
+            border: 1px solid #e9ecef;
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .feature-group:hover {
+            border-color: #198754;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        
+        .feature-group .form-check {
+            margin-bottom: 0.75rem;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s ease-in-out;
+        }
+        
+        .feature-group .form-check:hover {
+            background-color: #ffffff;
+        }
+        
+        .feature-group .form-check-input {
+            margin-right: 0.75rem;
+            cursor: pointer;
+        }
+        
+        .feature-group .form-check-label {
+            cursor: pointer;
+            user-select: none;
+            color: #495057;
+        }
+        
+        .feature-group .form-check-input:checked + .form-check-label {
+            color: #198754;
+            font-weight: 500;
+        }
+        
+        .feature-group h6 {
+            color: #198754;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        /* Add animation for checkbox state changes */
+        .form-check-input {
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .form-check-input:checked {
+            background-color: #198754;
+            border-color: #198754;
+        }
+    </style>
+{% endblock %} 
