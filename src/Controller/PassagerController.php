@@ -210,34 +210,75 @@ class PassagerController extends AbstractController
     }
     
     #[Route('/reclamation/submit', name: 'app_passager_reclamation_submit', methods: ['POST'])]
-    public function submitReclamation(Request $request, EntityManagerInterface $entityManager): Response
-    {
+    public function submitReclamation(
+        Request $request, 
+        EntityManagerInterface $entityManager,
+        \Symfony\Component\Validator\Validator\ValidatorInterface $validator,
+        \App\Service\EmailService $emailService
+    ): Response {
+        // Make sure only users with ROLE_PASSAGER can access this endpoint
         $this->denyAccessUnlessGranted('ROLE_PASSAGER');
         
         $subject = $request->request->get('subject');
         $description = $request->request->get('description');
-        
-        // Validation
-        if (!$subject || !$description) {
-            $this->addFlash('error', 'Tous les champs sont obligatoires');
+    
+        // Custom validation to ensure fields aren't just whitespace
+        if (trim($subject) === '') {
+            $this->addFlash('error', 'Le sujet ne peut pas être vide ou contenir uniquement des espaces');
+            return $this->redirectToRoute('app_passager_reclamation');
+        }
+    
+        if (trim($description) === '') {
+            $this->addFlash('error', 'La description ne peut pas être vide ou contenir uniquement des espaces');
             return $this->redirectToRoute('app_passager_reclamation');
         }
         
+        // Vérification de la longueur minimale
+        if (strlen(trim($subject)) < 5) {
+            $this->addFlash('error', 'Le sujet doit contenir au moins 5 caractères');
+            return $this->redirectToRoute('app_passager_reclamation');
+        }
+        
+        if (strlen(trim($description)) < 10) {
+            $this->addFlash('error', 'La description doit contenir au moins 10 caractères');
+            return $this->redirectToRoute('app_passager_reclamation');
+        }
+        
+        // Vérification de la longueur maximale
+        if (strlen(trim($subject)) > 255) {
+            $this->addFlash('error', 'Le sujet ne doit pas dépasser 255 caractères');
+            return $this->redirectToRoute('app_passager_reclamation');
+        }
+    
         // Créer une nouvelle réclamation
         $reclamation = new Reclamation();
         $reclamation->setUser($this->getUser());
-        $reclamation->setSubject($subject);
-        $reclamation->setDescription($description);
+        $reclamation->setSubject(trim($subject));
+        $reclamation->setDescription(trim($description));
         $reclamation->setDate(new \DateTime());
-        $reclamation->setState('pending');
+        $reclamation->setStatus('pending');
+    
+        // Validate the entity using the constraints defined in the entity
+        $errors = $validator->validate($reclamation);
+    
+        if (count($errors) > 0) {
+            foreach ($errors as $error) {
+                $this->addFlash('error', $error->getMessage());
+            }
+            return $this->redirectToRoute('app_passager_reclamation');
+        }
         
+        // Persistance en base de données
         $entityManager->persist($reclamation);
         $entityManager->flush();
         
-        $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
-        // Redirect to the reclamation list page after successful submission
+        // Envoi d'un email de notification
+        $emailService->sendReclamationNotificationEmail($reclamation);
+    
+        $this->addFlash('success', 'Votre réclamation a été soumise avec succès.');
         return $this->redirectToRoute('app_passager_mes_reclamations');
     }
+    
     
     #[Route('/mes-reclamations', name: 'app_passager_mes_reclamations')]
     public function mesReclamations(): Response

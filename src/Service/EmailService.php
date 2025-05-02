@@ -8,6 +8,7 @@ use App\Repository\UtilisateurRepository;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\SMTP;
+use App\Entity\Reclamation;
 
 class EmailService
 {
@@ -265,6 +266,229 @@ class EmailService
                         
                         <p>Nous sommes impatients de vous voir à cet événement!</p>
                         <p>Merci d'utiliser Covoituni pour vos déplacements!</p>
+                    </div>
+                    <div class='footer'>
+                        <p>Covoituni - La solution de covoiturage pour étudiants</p>
+                        <p>Pour toute question, contactez-nous à covoituni.tn@gmail.com</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        ";
+    }
+
+    /**
+     * Send notification email when a reclamation is submitted
+     */
+    public function sendReclamationNotificationEmail(Reclamation $reclamation): bool
+    {
+        try {
+            // Get user info
+            $user = $reclamation->getUser();
+            if (!$user) {
+                error_log("[EMAIL ERROR] Aucun utilisateur trouvé pour la réclamation");
+                return false;
+            }
+            
+            $userEmail = $user->getEmail();
+            $userName = $user->getPrenom() . ' ' . $user->getNom();
+            $userRole = in_array('ROLE_CONDUCTEUR', $user->getRoles()) ? 'Conducteur' : 'Passager';
+            
+            error_log("[EMAIL DEBUG] Préparation de l'email de réclamation par: $userName ($userEmail)");
+
+            $subject = 'Nouvelle réclamation reçue - Covoituni';
+            $messageBody = $this->getReclamationNotificationContent($reclamation, $user, $userRole);
+
+            // Use PHPMailer
+            $mail = new PHPMailer(true);
+            
+            try {
+                // Server configuration
+                $mail->SMTPDebug = SMTP::DEBUG_OFF;                     
+                $mail->isSMTP();                                        
+                $mail->Host       = 'smtp.gmail.com';                   
+                $mail->SMTPAuth   = true;                               
+                $mail->Username   = $this->senderEmail;                 
+                $mail->Password   = $this->emailPassword;               
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;        
+                $mail->Port       = 465;                                
+                $mail->CharSet    = 'UTF-8';                           
+
+                // Recipients
+                $mail->setFrom($this->senderEmail, $this->senderName);
+                $mail->addAddress($this->senderEmail);                  // Send to admin email
+                $mail->addReplyTo($userEmail, $userName);               // Reply to the user
+
+                // Content
+                $mail->isHTML(true);                                   
+                $mail->Subject = $subject;
+                $mail->Body    = $messageBody;
+                $mail->AltBody = strip_tags(str_replace(['<div>', '</div>', '<p>', '</p>'], ["\n", '', "\n", ''], $messageBody));
+
+                error_log("[EMAIL DEBUG] Tentative d'envoi de notification de réclamation");
+                $mail->send();
+                error_log("[EMAIL SUCCESS] Notification de réclamation envoyée avec succès");
+                
+                // Also send confirmation email to the user
+                $this->sendReclamationConfirmationToUser($reclamation, $user);
+                
+                return true;
+            } catch (Exception $e) {
+                error_log("[EMAIL ERROR] PHPMailer n'a pas pu envoyer le message. Erreur: {$mail->ErrorInfo}");
+                return false;
+            }
+        } catch (\Exception $e) {
+            $errorMsg = $e->getMessage();
+            $errorCode = $e->getCode();
+            $trace = $e->getTraceAsString();
+            error_log("[EMAIL ERROR] Erreur générale: Code=$errorCode Message=$errorMsg");
+            error_log("[EMAIL ERROR] Trace: " . substr($trace, 0, 1000));
+            return false;
+        }
+    }
+
+    /**
+     * Send confirmation email to user who submitted the reclamation
+     */
+    private function sendReclamationConfirmationToUser(Reclamation $reclamation, Utilisateur $user): bool
+    {
+        try {
+            $userEmail = $user->getEmail();
+            if (!$userEmail) {
+                error_log("[EMAIL ERROR] L'utilisateur n'a pas d'email: " . $user->getUsername());
+                return false;
+            }
+            
+            $subject = 'Confirmation de votre réclamation - Covoituni';
+            $messageBody = $this->getReclamationConfirmationContent($reclamation, $user);
+
+            $mail = new PHPMailer(true);
+            
+            try {
+                // Server configuration
+                $mail->SMTPDebug = SMTP::DEBUG_OFF;                    
+                $mail->isSMTP();                                       
+                $mail->Host       = 'smtp.gmail.com';                  
+                $mail->SMTPAuth   = true;                              
+                $mail->Username   = $this->senderEmail;                
+                $mail->Password   = $this->emailPassword;              
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;       
+                $mail->Port       = 465;                               
+                $mail->CharSet    = 'UTF-8';                           
+
+                // Recipients
+                $mail->setFrom($this->senderEmail, $this->senderName);
+                $mail->addAddress($userEmail);                         
+
+                // Content
+                $mail->isHTML(true);                                  
+                $mail->Subject = $subject;
+                $mail->Body    = $messageBody;
+                $mail->AltBody = strip_tags(str_replace(['<div>', '</div>', '<p>', '</p>'], ["\n", '', "\n", ''], $messageBody));
+
+                $mail->send();
+                error_log("[EMAIL SUCCESS] Email de confirmation de réclamation envoyé à: $userEmail");
+                return true;
+            } catch (Exception $e) {
+                error_log("[EMAIL ERROR] PHPMailer n'a pas pu envoyer le message à l'utilisateur. Erreur: {$mail->ErrorInfo}");
+                return false;
+            }
+        } catch (\Exception $e) {
+            $errorMsg = $e->getMessage();
+            error_log("[EMAIL ERROR] Erreur lors de l'envoi de confirmation à l'utilisateur: $errorMsg");
+            return false;
+        }
+    }
+
+    /**
+     * Format the content of the reclamation notification email to admin
+     */
+    private function getReclamationNotificationContent(Reclamation $reclamation, Utilisateur $user, string $userRole): string
+    {
+        $userName = $user->getPrenom() . ' ' . $user->getNom();
+        $userEmail = $user->getEmail();
+        $subject = $reclamation->getSubject();
+        $description = $reclamation->getDescription();
+        $date = $reclamation->getDate() ? $reclamation->getDate()->format('d/m/Y H:i') : 'Non spécifiée';
+        
+        return "
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background-color: #4CAF50; color: white; padding: 10px; text-align: center; }
+                    .content { padding: 20px; }
+                    .details { background-color: #f9f9f9; padding: 15px; margin: 15px 0; border-left: 4px solid #4CAF50; }
+                    .footer { font-size: 12px; text-align: center; margin-top: 20px; color: #777; }
+                </style>
+            </head>
+            <body>
+                <div class='container'>
+                    <div class='header'>
+                        <h1>Nouvelle Réclamation</h1>
+                    </div>
+                    <div class='content'>
+                        <p>Une nouvelle réclamation a été soumise par un utilisateur.</p>
+                        
+                        <div class='details'>
+                            <p><strong>Utilisateur:</strong> $userName ($userRole)</p>
+                            <p><strong>Email:</strong> $userEmail</p>
+                            <p><strong>Date:</strong> $date</p>
+                            <p><strong>Sujet:</strong> $subject</p>
+                            <p><strong>Description:</strong></p>
+                            <p>$description</p>
+                        </div>
+                        
+                        <p>Veuillez traiter cette réclamation dès que possible.</p>
+                    </div>
+                    <div class='footer'>
+                        <p>Covoituni - La solution de covoiturage pour étudiants</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        ";
+    }
+
+    /**
+     * Format the content of the confirmation email to user
+     */
+    private function getReclamationConfirmationContent(Reclamation $reclamation, Utilisateur $user): string
+    {
+        $firstName = $user->getPrenom();
+        $subject = $reclamation->getSubject();
+        $date = $reclamation->getDate() ? $reclamation->getDate()->format('d/m/Y H:i') : 'Non spécifiée';
+        
+        return "
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background-color: #4CAF50; color: white; padding: 10px; text-align: center; }
+                    .content { padding: 20px; }
+                    .details { background-color: #f9f9f9; padding: 15px; margin: 15px 0; border-left: 4px solid #4CAF50; }
+                    .footer { font-size: 12px; text-align: center; margin-top: 20px; color: #777; }
+                </style>
+            </head>
+            <body>
+                <div class='container'>
+                    <div class='header'>
+                        <h1>Réclamation Enregistrée</h1>
+                    </div>
+                    <div class='content'>
+                        <p>Bonjour $firstName,</p>
+                        <p>Nous avons bien reçu votre réclamation et nous vous remercions de nous avoir fait part de votre problème.</p>
+                        
+                        <div class='details'>
+                            <p><strong>Sujet:</strong> $subject</p>
+                            <p><strong>Date de soumission:</strong> $date</p>
+                            <p><strong>Statut:</strong> En attente de traitement</p>
+                        </div>
+                        
+                        <p>Notre équipe va examiner votre réclamation dans les plus brefs délais et vous tiendra informé de son évolution.</p>
+                        <p>Vous pouvez suivre l\'état de votre réclamation dans la section \"Mes réclamations\" de votre espace personnel.</p>
                     </div>
                     <div class='footer'>
                         <p>Covoituni - La solution de covoiturage pour étudiants</p>

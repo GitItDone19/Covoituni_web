@@ -43,6 +43,18 @@ class AdminController extends AbstractController
         $reclamationsMonthlyData = $reclamationRepository->getMonthlyStats();
         $avisMonthlyData = $avisRepository->getMonthlyStats();
         
+        // Format monthly data as key-value pairs for the template
+        $formattedReclamationsMonthlyData = [];
+        $formattedAvisMonthlyData = [];
+        
+        foreach ($reclamationsMonthlyData as $month => $count) {
+            $formattedReclamationsMonthlyData[$month] = $count;
+        }
+        
+        foreach ($avisMonthlyData as $month => $count) {
+            $formattedAvisMonthlyData[$month] = $count;
+        }
+        
         // Comprehensive statistics for the dashboard
         $stats = [
             // User statistics
@@ -88,7 +100,7 @@ class AdminController extends AbstractController
                     $avisRepository->countByRating(4),
                     $avisRepository->countByRating(5),
                 ],
-                'monthly' => $avisMonthlyData,
+                'monthly' => $formattedAvisMonthlyData,
             ],
             
             // Reclamation statistics
@@ -102,6 +114,7 @@ class AdminController extends AbstractController
                           $reclamationRepository->countByStatus('in_progress') + 
                           $reclamationRepository->countByStatus('resolved') + 
                           $reclamationRepository->countByStatus('rejected'),
+                'monthly' => $formattedReclamationsMonthlyData,
             ],
             
             // Recent users

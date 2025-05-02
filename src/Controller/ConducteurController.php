@@ -28,6 +28,7 @@ use App\Repository\EventParticipationRepository;
 use App\Entity\Reclamation;
 use App\Service\CarApiService;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use App\Service\EmailService;
 
 #[Route('/conducteur')]
 class ConducteurController extends AbstractController
@@ -88,7 +89,8 @@ class ConducteurController extends AbstractController
     public function reclamationSubmit(
         Request $request, 
         EntityManagerInterface $entityManager,
-        \Symfony\Component\Validator\Validator\ValidatorInterface $validator
+        \Symfony\Component\Validator\Validator\ValidatorInterface $validator,
+        \App\Service\EmailService $emailService
     ): Response
     {
         // Make sure only users with ROLE_CONDUCTEUR can access this endpoint
@@ -114,7 +116,7 @@ class ConducteurController extends AbstractController
         $reclamation->setSubject(trim($subject));  // Trim to remove leading/trailing whitespace
         $reclamation->setDescription(trim($description));  // Trim to remove leading/trailing whitespace
         $reclamation->setDate(new \DateTime());
-        $reclamation->setState('pending');
+        $reclamation->setStatus('pending');
         
         // Validate the entity using the constraints defined in the entity
         $errors = $validator->validate($reclamation);
@@ -129,6 +131,9 @@ class ConducteurController extends AbstractController
         
         $entityManager->persist($reclamation);
         $entityManager->flush();
+        
+        // Envoi d'un email de notification
+        $emailService->sendReclamationNotificationEmail($reclamation);
         
         $this->addFlash('success', 'Votre réclamation a été soumise avec succès');
         

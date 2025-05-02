@@ -14,9 +14,11 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Knp\Bundle\SnappyBundle\Snappy\Response\PdfResponse;
+use Knp\Component\Pager\PaginatorInterface;
 use Knp\Snappy\Pdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 // Ne pas mettre de name ici pour éviter les conflits
@@ -296,7 +298,7 @@ class ReclamationController extends AbstractController
     }
 
     #[Route('/{id}/pdf', name: 'app_admin_reclamation_pdf', methods: ['GET'])]
-    public function generatePdf(Reclamation $reclamation): Response
+    public function generatePdf(Reclamation $reclamation, ReclamationRepository $reclamationRepository): Response
     {
         // Make sure only users with ROLE_ADMIN can access this page
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
